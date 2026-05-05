@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Content - Text</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #ffffff;
+    color: #333333;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .header-bar {
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(90deg, #1a3a6b, #2a5aa0);
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  .header-accent {
+    position: absolute;
+    top: 100px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #4a90d9, transparent);
+  }
+  .body-area {
+    flex: 1;
+    padding: 60px 100px;
+    overflow: hidden;
+  }
+  .section-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a3a6b;
+    margin-bottom: 30px;
+    padding-left: 20px;
+    border-left: 5px solid #2a5aa0;
+  }
+  .body-text {
+    font-size: 24px;
+    font-weight: 400;
+    color: #444444;
+    line-height: 2;
+    text-align: justify;
+  }
+  .body-text p {
+    margin-bottom: 20px;
+  }
+  .footer-line {
+    width: 100%;
+    height: 3px;
+    background: #e8edf3;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="header-bar">
+    <div class="header-title" data-editable="header_title">页面标题</div>
+  </div>
+  <div class="header-accent"></div>
+  <div class="body-area">
+    <div class="section-title" data-editable="section_title">章节标题</div>
+    <div class="body-text" data-editable="body_text">
+      <p>在此处输入正文内容。这是一段示例文本，用于展示文本内容页面的排版效果。</p>
+      <p>可以根据需要添加更多段落，系统会自动调整排版和间距，确保内容清晰易读。</p>
+      <p>支持多段落文本展示，适用于各种商务演示场景。</p>
+    </div>
+  </div>
+  <div class="footer-line"></div>
+</body>
+</html>
