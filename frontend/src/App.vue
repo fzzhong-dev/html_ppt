@@ -4,11 +4,16 @@
 </template>
 
 <script setup>
+import { watchEffect } from 'vue'
 import { usePresentationStore } from './stores/presentation'
 import HomePage from './components/HomePage.vue'
 import EditorView from './components/EditorView.vue'
 
 const store = usePresentationStore()
+
+watchEffect(() => {
+  document.getElementById('app')?.classList.toggle('app--editor', !!store.presentation)
+})
 </script>
 
 <style>

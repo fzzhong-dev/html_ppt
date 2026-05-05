@@ -1,0 +1,28 @@
+/**
+ * OnlyOffice / Office-like chrome tokens for editor mode (#app.app--editor).
+ * Reference styling only — no third-party assets.
+ */
+#app.app--editor {
+  --oo-chrome-bg: #ffffff;
+  --oo-chrome-muted: #f3f2f1;
+  --oo-chrome-muted-hover: #edebe9;
+  --oo-ribbon-tab-strip-bg: #f3f2f1;
+  --oo-ribbon-panel-bg: #ffffff;
+  --oo-border: #edebe9;
+  --oo-border-strong: #d2d0ce;
+  --oo-border-tabs: #d2d0ce;
+  --oo-text: #323130;
+  --oo-text-secondary: #605e5c;
+  --oo-accent-orange: #d83b01;
+  --oo-accent-blue: #0078d4;
+  --oo-primary-green: #107c10;
+  --oo-qat-hover: #f3f2f1;
+  --oo-app-btn-bg: #f3f2f1;
+  --oo-app-btn-hover: #edebe9;
+  --oo-status-bg: #f3f2f1;
+  --oo-status-border: #d2d0ce;
+  --oo-workspace-bg: #e7e6e6;
+  --oo-shadow-chrome: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --oo-slide-pane-bg: #f3f2f1;
+  --oo-panel-header-bg: #faf9f8;
+}

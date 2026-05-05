@@ -168,6 +168,14 @@ code {
   box-sizing: border-box;
 }
 
+#app.app--editor {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border-inline: none;
+  text-align: left;
+}
+
 #center {
   display: flex;
   flex-direction: column;

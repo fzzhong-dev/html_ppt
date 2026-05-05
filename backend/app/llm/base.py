@@ -7,7 +7,7 @@ class LLMProvider(ABC):
     provider_name: str = ""
 
     @abstractmethod
-    async def chat(self, messages: list[dict], stream: bool = False) -> str | AsyncGenerator[str, None]:
+    async def chat(self, messages: list[dict], stream: bool = False, **kwargs) -> str | AsyncGenerator[str, None]:
         pass
 
     def is_available(self) -> bool:
@@ -19,6 +19,7 @@ def get_provider(provider_id: str) -> LLMProvider:
     from app.llm.claude_provider import ClaudeProvider
     from app.llm.zhipu_provider import ZhipuProvider
     from app.llm.qwen_provider import QwenProvider
+    from app.llm.deepseek_provider import DeepseekProvider
     from app.config import settings
 
     providers = {
@@ -34,10 +35,16 @@ def get_provider(provider_id: str) -> LLMProvider:
         "zhipu": lambda: ZhipuProvider(
             api_key=settings.zhipu_api_key,
             model=settings.zhipu_model,
+            base_url=settings.zhipu_base_url or None,
         ),
         "qwen": lambda: QwenProvider(
             api_key=settings.qwen_api_key,
             model=settings.qwen_model,
+        ),
+        "deepseek": lambda: DeepseekProvider(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+            model=settings.deepseek_model,
         ),
     }
     if provider_id not in providers:
@@ -47,7 +54,7 @@ def get_provider(provider_id: str) -> LLMProvider:
 
 def list_providers() -> list[dict]:
     result = []
-    for pid in ["openai", "claude", "zhipu", "qwen"]:
+    for pid in ["openai", "claude", "zhipu", "qwen", "deepseek"]:
         try:
             p = get_provider(pid)
             result.append({"id": pid, "name": p.provider_name, "available": p.is_available()})

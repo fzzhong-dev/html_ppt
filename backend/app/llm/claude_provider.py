@@ -10,7 +10,7 @@ class ClaudeProvider(LLMProvider):
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def chat(self, messages: list[dict], stream: bool = False) -> str:
+    async def chat(self, messages: list[dict], stream: bool = False, **kwargs) -> str:
         system_msg = ""
         chat_msgs = []
         for m in messages:
@@ -19,9 +19,13 @@ class ClaudeProvider(LLMProvider):
             else:
                 chat_msgs.append(m)
 
+        max_tokens = kwargs.get("max_tokens")
+        if max_tokens is None:
+            max_tokens = 4096
+
         response = await self.client.messages.create(
             model=self.model,
-            max_tokens=4096,
+            max_tokens=int(max_tokens),
             system=system_msg if system_msg else None,
             messages=chat_msgs,
         )

@@ -3,11 +3,11 @@ from app.llm.base import LLMProvider
 from app.llm.openai_http import build_openai_async_http_client
 
 
-class OpenAIProvider(LLMProvider):
-    provider_id = "openai"
-    provider_name = "OpenAI"
+class DeepseekProvider(LLMProvider):
+    provider_id = "deepseek"
+    provider_name = "DeepSeek"
 
-    def __init__(self, api_key: str, base_url: str = "https://api.openai.com/v1", model: str = "gpt-4o"):
+    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com/v1", model: str = "deepseek-chat"):
         self._http_client = build_openai_async_http_client()
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url, http_client=self._http_client)
         self.model = model

@@ -2,11 +2,56 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api' })
 
-export const generatePPT = (topic, outline, templateId, pageCount) =>
-  api.post('/ppt/generate', { topic, outline, template_id: templateId, page_count: pageCount })
+export const proposeOutline = (topic, seedOutline) =>
+  api.post('/ppt/outline', {
+    topic,
+    ...(seedOutline ? { seed_outline: seedOutline } : {}),
+  })
+
+export function proposeOutlineStream(topic, seedOutline) {
+  return fetch('/api/ppt/outline-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic,
+      ...(seedOutline ? { seed_outline: seedOutline } : {}),
+    }),
+  })
+}
+
+export const getLLMStatus = () =>
+  api.get('/llm/status')
+
+export const generatePPT = (topic, outline, pageCount = 8) =>
+  api.post('/ppt/generate', {
+    topic,
+    ...(outline?.trim() ? { outline: outline.trim() } : {}),
+    page_count: pageCount,
+  })
+
+export function generatePPTStream(topic, outline, pageCount = 8) {
+  return fetch('/api/ppt/generate-stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic,
+      ...(outline?.trim() ? { outline: outline.trim() } : {}),
+      page_count: pageCount,
+    }),
+  })
+}
 
 export const modifySlide = (presentationId, slideId, instruction, chatHistory) =>
   api.post('/ppt/modify', { presentation_id: presentationId, slide_id: slideId, instruction, chat_history: chatHistory })
+
+export const patchSlideHtml = (presentationId, slideId, htmlContent) =>
+  api.patch(`/ppt/${presentationId}/slide-html`, { slide_id: slideId, html_content: htmlContent })
+
+export const insertSlide = (presentationId, payload) =>
+  api.post(`/ppt/${presentationId}/slides`, payload)
+
+export const deleteSlideApi = (presentationId, slideId) =>
+  api.post(`/ppt/${presentationId}/delete-slide`, { slide_id: slideId })
 
 export const exportPPTX = (presentationId) =>
   api.post('/ppt/export', { presentation_id: presentationId }, { responseType: 'blob' })

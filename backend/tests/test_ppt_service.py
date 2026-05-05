@@ -9,15 +9,15 @@ def service():
 
 
 def test_create_presentation(service):
-    result = service.create_presentation("人工智能的未来", "business-blue")
+    result = service.create_presentation("人工智能的未来", "generated")
     assert result.title == "人工智能的未来"
-    assert result.template_id == "business-blue"
-    assert len(result.slides) > 0
-    assert result.slides[0].id
+    assert result.template_id == "generated"
+    assert len(result.slides) == 0
+    assert result.id
 
 
 def test_get_presentation(service):
-    created = service.create_presentation("测试主题", "business-blue")
+    created = service.create_presentation("测试主题", "generated")
     found = service.get_presentation(created.id)
     assert found is not None
     assert found.title == "测试主题"
@@ -29,9 +29,20 @@ def test_get_presentation_not_found(service):
 
 @pytest.mark.asyncio
 async def test_generate_slides_with_ai(service):
+    fake_slides = [
+        {"label": "封面", "html": "<!DOCTYPE html><html><head></head><body><p>封面页内容</p></body></html>"},
+        {"label": "目录", "html": "<!DOCTYPE html><html><head></head><body><p>目录页</p></body></html>"},
+        {"label": "一", "html": "<!DOCTYPE html><html><head></head><body><p>第一段</p></body></html>"},
+        {"label": "二", "html": "<!DOCTYPE html><html><head></head><body><p>第二段</p></body></html>"},
+        {"label": "三", "html": "<!DOCTYPE html><html><head></head><body><p>第三段</p></body></html>"},
+        {"label": "四", "html": "<!DOCTYPE html><html><head></head><body><p>第四段</p></body></html>"},
+        {"label": "五", "html": "<!DOCTYPE html><html><head></head><body><p>第五段</p></body></html>"},
+        {"label": "尾", "html": "<!DOCTYPE html><html><head></head><body><p>致谢</p></body></html>"},
+    ]
     with patch("app.services.ppt_service.call_llm_json", new_callable=AsyncMock) as mock_llm:
-        import json
-        mock_llm.return_value = json.loads('{"slides": [{"title": "AI简介", "body": "人工智能是..."}]}')
-        result = await service.generate_with_ai("人工智能", "business-blue")
+        mock_llm.return_value = {"slides": fake_slides}
+        result = await service.generate_with_ai("人工智能", "提纲要点", 8)
         assert result is not None
         assert result.title == "人工智能"
+        assert len(result.slides) == 8
+        assert "封面页内容" in result.slides[0].html_content

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 
@@ -20,11 +20,21 @@ class Presentation(BaseModel):
     updated_at: datetime = datetime.now()
 
 
+class OutlineProposalRequest(BaseModel):
+    topic: str
+    seed_outline: Optional[str] = None
+
+
+class OutlineProposalResponse(BaseModel):
+    steps: list[str]
+    outline: str
+
+
 class GenerateRequest(BaseModel):
     topic: str
     outline: Optional[str] = None
-    template_id: Optional[str] = None
-    page_count: int = 5
+    template_id: Optional[str] = None  # 已废弃，忽略
+    page_count: int = Field(default=8, ge=4, le=16)
 
 
 class ModifyRequest(BaseModel):
@@ -36,6 +46,24 @@ class ModifyRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     presentation_id: str
+
+
+class SlideHtmlPatchRequest(BaseModel):
+    """Manual editor sync: replace one slide's HTML."""
+
+    slide_id: str
+    html_content: str
+
+
+class SlideInsertRequest(BaseModel):
+    """Insert a new slide with raw HTML (e.g. blank page)."""
+
+    html_content: str
+    after_index: Optional[int] = None  # insert after this index; None = append at end
+
+
+class SlideDeleteRequest(BaseModel):
+    slide_id: str
 
 
 class ChatMessage(BaseModel):

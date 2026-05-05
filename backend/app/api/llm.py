@@ -1,9 +1,23 @@
 from fastapi import APIRouter
 
+from app.config import settings
 from app.llm.base import list_providers as llm_list_providers
-from app.services.llm_service import get_current_provider, set_current_provider
+from app.services.llm_service import get_current_provider, resolve_provider_id, set_current_provider
 
 router = APIRouter()
+
+
+@router.get("/status")
+async def llm_status():
+    selected = get_current_provider()
+    effective = resolve_provider_id(None)
+    return {
+        "configured_default": settings.default_provider,
+        "selected_provider": selected,
+        "effective_provider": effective,
+        "auto_fallback_used": selected != effective,
+        "providers": llm_list_providers(),
+    }
 
 
 @router.get("/providers")

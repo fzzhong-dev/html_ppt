@@ -30,6 +30,11 @@
     font-size: 36px;
     font-weight: 700;
     color: #ffffff;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-height: 1.2;
+    max-height: 96px;
+    overflow: hidden;
   }
   .header-accent {
     position: absolute;
@@ -51,6 +56,9 @@
     margin-bottom: 30px;
     padding-left: 20px;
     border-left: 5px solid #2a5aa0;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-height: 1.25;
   }
   .body-text {
     font-size: 24px;
@@ -58,9 +66,21 @@
     color: #444444;
     line-height: 2;
     text-align: justify;
+    overflow: hidden;
   }
   .body-text p {
     margin-bottom: 20px;
+  }
+  .body-text ul,
+  .body-text ol {
+    margin: 12px 0 20px 1.25em;
+    padding: 0;
+  }
+  .body-text li {
+    margin-bottom: 12px;
+  }
+  .body-text > div {
+    margin-bottom: 18px;
   }
   .footer-line {
     width: 100%;
