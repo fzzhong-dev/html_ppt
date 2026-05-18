@@ -12,6 +12,9 @@ body{
   max-width:1920px!important;max-height:1080px!important;
   overflow:hidden!important;position:relative;
   box-sizing:border-box!important;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;}
 </style>"""
@@ -21,10 +24,74 @@ def sanitize_slide_document(html: str) -> str:
     t = (html or "").strip()
     if not t:
         return t
-    t = re.sub(r"(?is)<script[^>]*>.*?</script>", "", t)
+    while re.search(r"(?is)<script\b[^>]*>.*?</script>", t):
+        t = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", t)
+    t = re.sub(r"(?is)<script\b[^>]*(?<!/)>", "", t)
     t = re.sub(r"(?is)<iframe[^>]*>.*?</iframe>", "", t)
     t = re.sub(r"(?is)<meta[^>]*http-equiv\s*=\s*[\"']?refresh[^>]*>", "", t)
+    t = re.sub(
+        r'(?i)\bon[a-z]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)',
+        "",
+        t,
+    )
+    t = re.sub(r'(?is)\b(href|src)\s*=\s*"\s*javascript:[^"]*"', r'\1=""', t)
+    t = re.sub(r"(?is)\b(href|src)\s*=\s*'\s*javascript:[^']*'", r"\1=''", t)
+    # Allow local proxy image URLs, strip external image URLs
+    t = _strip_external_images(t)
     return t.strip()
+
+
+# Allowed image src patterns (local proxy + data URIs + inline SVG)
+_ALLOWED_IMG_PREFIXES = (
+    "/api/images/proxy",
+    "data:",
+    "blob:",
+)
+
+
+def _strip_external_images(html: str) -> str:
+    """Remove external image URLs but keep local proxy, data URIs, and inline SVG."""
+
+    def _check_src(match):
+        value = match.group(1)
+        if not value:
+            return match.group(0)
+
+        for prefix in _ALLOWED_IMG_PREFIXES:
+            if value.startswith(prefix):
+                return match.group(0)
+
+        if not value.startswith(("http://", "https://", "//")):
+            return match.group(0)
+
+        return f'src="{match.group(0)[match.group(0).index(value) - 1]}"'.replace(
+            f'src="{match.group(0)[match.group(0).index(value) - 1]}"',
+            'src=""',
+        )
+
+    # Double-quoted src="..."
+    def _check_dq(m):
+        val = m.group(1)
+        for p in _ALLOWED_IMG_PREFIXES:
+            if val.startswith(p):
+                return m.group(0)
+        if not val.startswith(("http://", "https://", "//")):
+            return m.group(0)
+        return 'src=""'
+
+    # Single-quoted src='...'
+    def _check_sq(m):
+        val = m.group(1)
+        for p in _ALLOWED_IMG_PREFIXES:
+            if val.startswith(p):
+                return m.group(0)
+        if not val.startswith(("http://", "https://", "//")):
+            return m.group(0)
+        return "src=''"
+
+    html = re.sub(r'src\s*=\s*"([^"]*)"', _check_dq, html, flags=re.IGNORECASE)
+    html = re.sub(r"src\s*=\s*'([^']*)'", _check_sq, html, flags=re.IGNORECASE)
+    return html
 
 
 def _inject_guard_into_document(html: str) -> str:

@@ -60,6 +60,7 @@ async def generate(req: GenerateRequest):
         req.topic.strip(),
         req.outline,
         req.page_count,
+        creative_mode=req.creative_mode,
     )
     return presentation.model_dump()
 
@@ -83,6 +84,7 @@ async def generate_stream(req: GenerateRequest):
                 topic=req.topic.strip(),
                 outline=req.outline,
                 page_count=pc,
+                creative_mode=req.creative_mode,
             ):
                 slide_info["id"] = str(uuid.uuid4())
                 slide_info["editable_regions"] = {}

@@ -22,14 +22,15 @@ export function proposeOutlineStream(topic, seedOutline) {
 export const getLLMStatus = () =>
   api.get('/llm/status')
 
-export const generatePPT = (topic, outline, pageCount = 8) =>
+export const generatePPT = (topic, outline, pageCount = 8, creativeMode = true) =>
   api.post('/ppt/generate', {
     topic,
     ...(outline?.trim() ? { outline: outline.trim() } : {}),
     page_count: pageCount,
+    creative_mode: creativeMode,
   })
 
-export function generatePPTStream(topic, outline, pageCount = 8) {
+export function generatePPTStream(topic, outline, pageCount = 8, creativeMode = true) {
   return fetch('/api/ppt/generate-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,6 +38,7 @@ export function generatePPTStream(topic, outline, pageCount = 8) {
       topic,
       ...(outline?.trim() ? { outline: outline.trim() } : {}),
       page_count: pageCount,
+      creative_mode: creativeMode,
     }),
   })
 }
@@ -73,3 +75,6 @@ export const listProviders = () =>
 
 export const switchProvider = (provider) =>
   api.put('/llm/provider', { provider })
+
+export const searchImages = (query, page = 1) =>
+  api.get('/images/search', { params: { q: query, page } })

@@ -107,14 +107,14 @@ export const usePresentationStore = defineStore('presentation', () => {
     }
   }
 
-  async function generate(topic, outline, pageCount = 8) {
+  async function generate(topic, outline, pageCount = 8, creativeMode = true) {
     loading.value = true
     generationProgress.value = { current: 0, total: pageCount }
 
     try {
-      const response = await generatePPTStream(topic, outline, pageCount)
+      const response = await generatePPTStream(topic, outline, pageCount, creativeMode)
       if (!response.ok) {
-        const fallback = await generatePPT(topic, outline, pageCount)
+        const fallback = await generatePPT(topic, outline, pageCount, creativeMode)
         presentation.value = fallback.data
         currentSlideIndex.value = 0
         chatHistory.value = []

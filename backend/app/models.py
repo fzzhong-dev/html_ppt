@@ -15,6 +15,7 @@ class Presentation(BaseModel):
     title: str
     template_id: str
     theme: str = "default"
+    theme_data: Optional[dict] = None
     slides: list[Slide] = []
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
@@ -35,6 +36,7 @@ class GenerateRequest(BaseModel):
     outline: Optional[str] = None
     template_id: Optional[str] = None  # 已废弃，忽略
     page_count: int = Field(default=8, ge=4, le=16)
+    creative_mode: bool = True
 
 
 class ModifyRequest(BaseModel):

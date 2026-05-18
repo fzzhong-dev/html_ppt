@@ -5,7 +5,7 @@
         <iframe
           class="thumb-iframe"
           :srcdoc="htmlContent"
-          sandbox="allow-same-origin"
+          sandbox="allow-scripts allow-same-origin"
           tabindex="-1"
           title=""
           @load="scheduleResize"

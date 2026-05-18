@@ -62,7 +62,7 @@
                 ref="iframeRef"
                 :srcdoc="iframeSrc"
                 class="preview-iframe preview-iframe-main"
-                sandbox="allow-same-origin"
+                sandbox="allow-scripts allow-same-origin"
                 title="幻灯片预览"
                 @load="onIframeLoad"
               ></iframe>

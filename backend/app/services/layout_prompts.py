@@ -1,53 +1,150 @@
-"""Professional layout & design prompt fragments for slide generation."""
+"""Layout/design prompt fragments: technical constraints vs aesthetic guidance."""
 
-LAYOUT_ENHANCEMENT = """
-## 布局与设计规范（必须严格遵守）
+# Hard limits: canvas, overflow, security — keep outputs usable and safe.
+LAYOUT_TECH = """
+## 技术边界（必须遵守）
 
-### 排版层次
-- 封面页：主标题 48-60px 加粗，副标题 24-28px，装饰线用渐变色
-- 正文标题：36-44px 加粗，与正文间留 24px 以上间距
-- 正文主体：20-24px，行高 1.6-1.8，段间距 16-20px
-- 注释/来源：14-16px，灰色（#8a8886）
+### 画布与可读性
+- 画布固定为 **1920×1080 CSS 像素**：body 使用 width:1920px;height:1080px;margin:0;overflow:hidden;box-sizing:border-box。
+- 所有正文须在画布内完整可读：flex/grid 承载长文本的子容器请加 **min-width:0**（或合理 max-width）；必要时标题使用 **text-overflow:ellipsis**。
+- 长单词、URL：容器侧使用 **overflow-wrap:anywhere** 或 **word-break:break-word**，避免横向撑破版面。
+- 不要用巨幅偏移把主要内容挤出可视区；图表轴标签过长时请缩写或换行。
 
-### 布局模式（根据内容自动选择最合适的）
-1. **封面页**：左侧大标题 + 右侧几何装饰（渐变圆形/斜线），或居中标题 + 底部信息栏
-2. **目录页**：左侧大字目录 + 右侧页码时间轴，或卡片网格（2×3 或 3×2）
-3. **要点页**：左侧图标列表（每项配 Unicode 图标 ✦ ▸ ◆ ● ▶）+ 右侧配图/示意图
-4. **对比页**：左右分栏对比（不同背景色区分），中间竖线分隔
-5. **数据页**：上方标题 + 下方图表区（SVG），图表占页面 60-70%，配解读文字
-6. **时间线页**：水平或垂直时间轴，节点配圆形标记 + 描述卡片
-7. **卡片页**：3-4 个等宽卡片网格，每卡有图标 + 标题 + 简述，圆角 8-12px，阴影
-8. **引用页**：大号引号 + 引用文字居中 + 底部来源
+### 安全与资源
+- **禁止**外链脚本、iframe、依赖网络的图片 URL。
+- **配图**：若需配图，使用 `<img src="/api/images/proxy?url=编码后的图片地址" />` 格式（通过后端代理加载）；或使用内联 SVG、CSS 渐变、几何色块。
+- 若页面需要数据图形，**仅使用内联 SVG**，禁止使用外部图表库或脚本驱动的图表。
+"""
 
-### 配色方案（从以下选择一套，全幻灯片保持一致）
-方案A（科技蓝）：主色 #0078D4，辅色 #50E6FF，背景渐变 #0a1628→#1a2744，文字白色
-方案B（商务绿）：主色 #107C10，辅色 #BAD80A，背景白色/浅灰，文字 #323130
-方案C（创意橙）：主色 #CA5010，辅色 #FFB900，背景 #FFF8F0→白色，文字 #323130
-方案D（学术紫）：主色 #5C2D91，辅色 #B4A0FF，背景白色，文字 #323130
-方案E（简约灰）：主色 #323130，辅色 #0078D4，背景白色，文字 #323130
-**根据主题自动选择最匹配的配色方案，并在所有页面中保持一致。**
+# Creative default: diversity, no emoji wallpaper, charts only when justified.
+LAYOUT_CREATIVE = """
+## 美学与多样性（大胆发挥，禁止「同一套淘宝模板」感）
 
-### 图标与装饰
-- 使用 Unicode 符号作为图标：📊 📈 🎯 💡 🔧 🏆 ⭐ 📋 🔍 💬 🌐 📱 🚀 ✅ ❌ ⚡ 📌 🏗️ 💰
-- 装饰元素：渐变色块、半透明圆形背景、细线分隔、圆角矩形卡片（border-radius:8-12px）
-- 封面和结尾页可使用大尺寸装饰性几何图形（SVG 圆形、三角形、波浪线）
+### 气质与色彩
+- **由主题自拟**调色与字体气质（科技 / 人文 / 童趣 / 高冷极简 / 复古印刷风等均可）；不必套用固定「企业五色盘」。
+- 全稿可有统一的叙事气质，但**允许**章节之间有轻微的色相或密度变化，避免每张都像复制粘贴。
 
-### SVG 图表规范
-- 柱状图：圆角柱体（rx=4），渐变填充，网格线浅灰色，Y 轴标签
-- 折线图：2-3px 粗线条，数据点用圆点标记（r=4），区域填充半透明渐变
-- 饼图：相邻扇区用对比色，图例在右侧，百分比标签
-- 所有图表：标题在图表上方 16-20px 处，解读文字在图表下方
-- 图表必须使用 SVG 内联实现，不要用任何外部库
+### 版式灵感（仅为举例，不必每张都嵌图标或卡片）
+可从下列思路中**挑选与主题匹配的少数几种**，穿插使用：大幅留白 + 一句核心论点；杂志分栏；瑞士网格；海报式强对比色块；时间线纯文字；对照表；封面极简字标；目录编号列表无装饰等。
+**不必**为了凑类型而把封面、目录、卡片、图表各做一遍套路页。
+
+### 图标与符号
+- **默认不要**在列表项、标题旁堆砌装饰性 Emoji 或 Unicode 符号。
+- 若语义上确实需要（例如步骤序号、单一警示点），**少量**即可；**多数页面应为纯排版**（字重、间距、分割线、几何块面）。
+
+### 数据图（SVG）
+- **仅当本页确有数值、比例、趋势或结构化对比**时再画内联 SVG；样式自定（不必圆角柱、渐变填充或固定网格线样式）。
+- 无合适数据时，用精炼文字、对照列表、引用块等完成叙事，**禁止无病呻吟式图表**。
+
+### 收尾页
+- 形式随主题而定（总结、CTA、讨论问题、延伸阅读等），避免程式化「感谢聆听」套话（除非场景确实适合）。
+"""
+
+# Conservative: tighter brand-friendly tone without mandating emoji or chart spam.
+LAYOUT_CONSERVATIVE = """
+## 美学（稳健模式）
+
+### 整体
+- 选择 **一套协调配色**，在全稿中保持一致或轻微渐变过渡；字体清晰可读。
+- 层级分明：封面主标题醒目，正文段间距舒适；避免杂乱堆砌装饰。
+
+### 图标与图表
+- **少用**装饰性 Emoji；优先靠排版与色彩区分层次。
+- **仅当**内容包含可量化对比或趋势时，使用内联 SVG 简化图表；否则用文字与列表即可。
+
+### 版式
+- 以清晰的信息传达为先：分栏、列表、适度留白；不必追求花哨特效。
 """
 
 MODIFY_LAYOUT_GUIDE = """
 ## 编辑规范
-1. 保持画布 1920×1080，body overflow:hidden
-2. 保持现有配色方案一致性（除非用户要求更改配色）
-3. 保持专业排版层次：标题 36-44px 加粗，正文 20-24px，行高 1.6-1.8
-4. 禁止引入外链脚本、iframe、网络图片
-5. 可以使用内联 SVG、CSS 渐变、Unicode 图标
-6. 只修改用户要求的部分，保持其他内容不变
-7. 如果用户要求添加图表，使用内联 SVG（柱状图/折线图/饼图）
-8. 如果用户要求调整布局，使用 CSS flexbox/grid
+1. 保持画布 1920×1080，body overflow:hidden；不要引入外链脚本、iframe、网络图片。
+2. 尊重当前幻灯片已有的视觉气质与配色逻辑；用户未要求改版式或配色时，尽量只做针对性修改。
+3. 字号与字重以可读为准，不必强行对齐某一固定 px 规范。
+4. 可使用内联 SVG、CSS 渐变；不要为了装饰而堆砌 Emoji。
+5. 仅修改用户要求的部分，其余结构与文案尽量保持不变。
+6. 若用户要求补充数据对比且尚无图表，可用内联 SVG；否则优先用文字与排版解决。
+7. 布局调整优先使用 flexbox/grid。
+"""
+
+
+def slide_layout_instructions(*, creative: bool = True) -> str:
+    """Full layout block for slide generation: tech + aesthetic tier."""
+    aesthetic = LAYOUT_CREATIVE if creative else LAYOUT_CONSERVATIVE
+    return f"{LAYOUT_TECH}\n{aesthetic}"
+
+
+# Backward compatibility for imports expecting a single constant name.
+LAYOUT_ENHANCEMENT = slide_layout_instructions(creative=True)
+
+# ---------------------------------------------------------------------------
+# Shared-theme generation prompt (Phase 1 — tiny LLM call, ~200 tokens out)
+# ---------------------------------------------------------------------------
+
+THEME_GENERATION_PROMPT = """\
+你是演示文稿视觉设计师。为主题选择一套协调的设计令牌。
+输出合法 JSON（不要 Markdown 围栏，不要解释文字）。
+
+格式：
+{
+  "palette": {
+    "primary": "#...",
+    "secondary": "#...",
+    "accent": "#...",
+    "accent_light": "#...",
+    "bg": "#...",
+    "surface": "#...",
+    "border": "#..."
+  },
+  "typography": {
+    "heading_font": "...",
+    "body_font": "...",
+    "heading_weight": "700",
+    "body_weight": "400"
+  },
+  "spacing": {
+    "page_padding": "64px",
+    "section_gap": "36px",
+    "element_gap": "18px"
+  }
+}
+
+要求：
+- 配色须服务于主题气质（科技 / 人文 / 商务 / 创意 等），可读优先。
+- palette 共 7 个色值，全部为 hex 格式。
+- typography 中 font 须包含中文回退（Microsoft YaHei / PingFang SC）。
+- spacing 保持合理的 px 值。
+- accent_light 应为 accent 的浅色版本（10-20% 不透明度效果）。
+"""
+
+# ---------------------------------------------------------------------------
+# Slide body-fragment generation prompt (Phase 2 — ~500-800 tokens out)
+# ---------------------------------------------------------------------------
+
+SLIDE_FRAGMENT_PROMPT = """\
+你是资深演示文稿设计师。生成「恰好 1 页」的幻灯片正文 HTML 片段。
+
+当前是第 {index} 页（共 {total} 页），用途：{label}。
+内容要点：{content_brief}
+
+完整幻灯片结构：
+{plan_summary}
+
+本演示文稿已定义以下共享 CSS 类（通过 class 属性使用，禁止自定义 <style> 标签）：
+{css_catalog}
+
+输出合法 JSON（不要 Markdown 围栏，不要解释文字）。
+顶层格式：{{"label":"本页用途简述","body":"...HTML body 片段..."}}
+
+body 字段只需 <body> 标签内部的 HTML，不需要 <!DOCTYPE>、<html>、<head>、<style>。
+
+HTML 要求：
+1. 使用上述 ppt-* CSS 类进行排版；如需微调可用 inline style。
+2. body 片段将渲染在 1920x1080 画布内，请确保内容不溢出。
+3. 禁止外链脚本与 iframe；禁止直接使用外部图片 URL。
+4. **配图**：若需图片装饰，可使用 `<img src="/api/images/proxy?url=ENCODED_URL" style="width:100%;height:100%;object-fit:cover;" />`（ENCODED_URL 为已编码的 Pexels/Unsplash 图片直链）；也可用 CSS 渐变、几何色块、内联 SVG。
+5. 禁止 <style> 标签（所有样式通过共享 CSS 类 + inline style 实现）。
+6. 内容充实：多段阐述、列表或小标题分区均可；本页视觉应与主题匹配。
+7. 配色与排版服务于主题；正文可读优先（字号不宜过小）；不要用装饰性 Emoji 铺满页面。
+8. JSON 内双引号必须转义。
 """

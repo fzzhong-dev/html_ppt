@@ -22,8 +22,9 @@ async def health():
     return {"status": "ok"}
 
 
-from app.api import ppt, templates, llm  # noqa: E402
+from app.api import ppt, templates, llm, images  # noqa: E402
 
 app.include_router(ppt.router, prefix="/api/ppt", tags=["ppt"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 app.include_router(llm.router, prefix="/api/llm", tags=["llm"])
+app.include_router(images.router, prefix="/api/images", tags=["images"])

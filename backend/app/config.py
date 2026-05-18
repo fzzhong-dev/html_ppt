@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     templates_dir: str = str(Path(__file__).parent.parent.parent / "templates")
     screenshots_dir: str = str(Path(__file__).parent.parent / "screenshots")
     screenshot_script: str = str(Path(__file__).parent.parent.parent / "scripts" / "screenshot.js")
+    # Pexels image search
+    pexels_api_key: str = ""
+    # Unsplash image search (fallback)
+    unsplash_access_key: str = ""
 
 
 settings = Settings()

@@ -41,7 +41,14 @@
           max="16"
           class="num-input"
         />
-        <span class="field-hint inline">建议 8～12 页以获得足够正文与图表空间。</span>
+        <span class="field-hint inline">建议 8～12 页；页数多不等于要多画图。</span>
+      </div>
+
+      <div class="form-group checkbox-row">
+        <label class="checkbox-label">
+          <input v-model="creativeMode" type="checkbox" />
+          <span>创意模式（推荐）：版式与配色随主题发挥，少图标与套路模板</span>
+        </label>
       </div>
 
       <div v-if="visibleSteps.length" class="steps-panel">
@@ -107,6 +114,7 @@ const store = usePresentationStore()
 const topic = ref('')
 const outlineDraft = ref('')
 const pageCount = ref(8)
+const creativeMode = ref(true)
 const outlineBusy = ref(false)
 const pptBusy = ref(false)
 const errorMsg = ref('')
@@ -217,7 +225,7 @@ async function handleGeneratePpt() {
   pptBusy.value = true
   try {
     const outline = outlineDraft.value.trim()
-    await store.generate(topic.value.trim(), outline || '', pageCount.value)
+    await store.generate(topic.value.trim(), outline || '', pageCount.value, creativeMode.value)
   } catch (e) {
     errorMsg.value =
       e?.response?.data?.detail?.toString?.() ||
@@ -314,6 +322,23 @@ onMounted(() => {
 }
 .inline-number label {
   margin-bottom: 0;
+}
+.checkbox-row {
+  margin-bottom: 14px;
+}
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #323130;
+  line-height: 1.45;
+  cursor: pointer;
+  font-weight: 500;
+}
+.checkbox-label input {
+  margin-top: 3px;
+  flex-shrink: 0;
 }
 .num-input {
   width: 72px;

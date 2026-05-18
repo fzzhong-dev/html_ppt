@@ -1,5 +1,27 @@
 <template>
   <div class="editor">
+    <!-- Fullscreen slideshow overlay -->
+    <div
+      v-if="slideshowActive"
+      class="slideshow-overlay"
+      @click="onSlideshowClick"
+      @keydown.left="store.prevSlide"
+      @keydown.right="store.nextSlide"
+      @keydown.escape="exitSlideshow"
+    >
+      <div class="slideshow-stage" :style="slideshowStageStyle">
+        <iframe
+          :srcdoc="store.currentSlide?.html_content ?? ''"
+          class="slideshow-iframe"
+          sandbox="allow-scripts allow-same-origin"
+        ></iframe>
+      </div>
+      <div class="slideshow-footer">
+        <span>{{ store.currentSlideIndex + 1 }} / {{ store.slideCount }}</span>
+        <span class="slideshow-hint">← → 翻页 · ESC 退出</span>
+      </div>
+    </div>
+
     <Toolbar
       :exporting="exporting"
       :can-undo="store.canUndo"
@@ -16,7 +38,7 @@
       @add-slide="store.addSlide"
       @copy-slide="store.copySlide"
       @delete-slide="store.deleteSlide"
-      @insert-image="handleInsert('在这页中插入一张配图，风格与页面主题协调')"
+      @insert-image="showImageSearch = !showImageSearch"
       @insert-chart="handleInsert('在这页中添加一个数据图表（柱状图/折线图/饼图），使用内联SVG实现，配有标题和简短解读')"
       @insert-shape="handleInsert('在这页中添加装饰性形状元素（几何图形、分隔线、图标等），提升视觉效果')"
       @insert-blank="store.addBlankSlide"
@@ -59,6 +81,11 @@
           :loading="store.loading"
           @send="handleChatSend"
         />
+        <ImageSearchPanel
+          v-if="showImageSearch"
+          @select="handleImageSelect"
+          @close="showImageSearch = false"
+        />
       </div>
       <EditorStatusBar
         :current-index="store.currentSlideIndex"
@@ -76,13 +103,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePresentationStore } from '../stores/presentation'
 import Toolbar from './Toolbar.vue'
 import SlideList from './SlideList.vue'
 import SlidePreview from './SlidePreview.vue'
 import ChatPanel from './ChatPanel.vue'
 import EditorStatusBar from './EditorStatusBar.vue'
+import ImageSearchPanel from './ImageSearchPanel.vue'
 import { getPalette } from '../utils/designPalettes'
 import { getLayoutBody } from '../utils/slideLayouts'
 import {
@@ -98,11 +126,92 @@ const store = usePresentationStore()
 const exporting = ref(false)
 const slideTransition = ref('ppt-fade')
 const activePaletteId = ref('luxury-muted')
+const showImageSearch = ref(false)
 
 /** 'fit' | 'manual' — 与 SlidePreview、状态栏一致 */
 const canvasZoomMode = ref('fit')
 const canvasZoomPercent = ref(100)
 const effectiveZoomPercent = ref(100)
+
+// --- Fullscreen slideshow ---
+const slideshowActive = ref(false)
+const slideshowWinW = ref(window.innerWidth)
+const slideshowWinH = ref(window.innerHeight)
+
+const SLIDE_W = 1920
+const SLIDE_H = 1080
+
+const slideshowScale = computed(() => {
+  const scaleX = slideshowWinW.value / SLIDE_W
+  const scaleY = slideshowWinH.value / SLIDE_H
+  return Math.min(scaleX, scaleY)
+})
+
+const slideshowStageStyle = computed(() => {
+  const s = slideshowScale.value
+  return {
+    width: `${SLIDE_W * s}px`,
+    height: `${SLIDE_H * s}px`,
+    '--slideshow-s': s,
+  }
+})
+
+function updateSlideshowSize() {
+  slideshowWinW.value = window.innerWidth
+  slideshowWinH.value = window.innerHeight
+}
+
+function handleFullscreen() {
+  slideshowActive.value = true
+  document.documentElement.requestFullscreen?.()
+}
+
+function exitSlideshow() {
+  slideshowActive.value = false
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.()
+  }
+}
+
+function onSlideshowClick(e) {
+  // Click left third → prev, right third → next, center → do nothing
+  const x = e.clientX
+  const third = window.innerWidth / 3
+  if (x < third) {
+    store.prevSlide()
+  } else if (x > third * 2) {
+    store.nextSlide()
+  }
+}
+
+function onSlideshowKeydown(e) {
+  if (!slideshowActive.value) return
+  if (e.key === 'ArrowLeft') {
+    store.prevSlide()
+  } else if (e.key === 'ArrowRight') {
+    store.nextSlide()
+  } else if (e.key === 'Escape') {
+    exitSlideshow()
+  }
+}
+
+function onFullscreenChange() {
+  if (!document.fullscreenElement && slideshowActive.value) {
+    slideshowActive.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onSlideshowKeydown)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  window.addEventListener('resize', updateSlideshowSize)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onSlideshowKeydown)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  window.removeEventListener('resize', updateSlideshowSize)
+})
 
 function onEffectiveZoom(z) {
   effectiveZoomPercent.value = z
@@ -155,15 +264,6 @@ async function handleExport() {
   }
 }
 
-function handleFullscreen() {
-  const iframe = document.querySelector('.preview-iframe-main')
-  const wrap = document.querySelector('.preview-stage')
-  const el = wrap || iframe
-  if (el?.requestFullscreen) {
-    el.requestFullscreen()
-  }
-}
-
 async function handleChatSend(message) {
   await store.modify(message)
 }
@@ -174,6 +274,13 @@ function handleBackHome() {
 
 function handleInsert(instruction) {
   store.modify(instruction)
+}
+
+function handleImageSelect(img) {
+  const proxyUrl = `/api/images/proxy?url=${encodeURIComponent(img.url)}`
+  const imgHtml = `<img src="${proxyUrl}" alt="${img.alt}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />`
+  store.applyHtmlTransform((html) => injectBeforeClosingBody(html, imgHtml))
+  showImageSearch.value = false
 }
 
 function handleInsertSnippet(type) {
@@ -211,6 +318,49 @@ function handleDesignBg(color) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Fullscreen slideshow */
+.slideshow-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.slideshow-stage {
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+.slideshow-iframe {
+  width: 1920px;
+  height: 1080px;
+  border: none;
+  display: block;
+  transform-origin: top left;
+  transform: scale(var(--slideshow-s, 1));
+}
+.slideshow-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+}
+.slideshow-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* 翻页过渡（切换选项卡） */
