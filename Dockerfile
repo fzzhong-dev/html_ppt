@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     chromium \
     fonts-noto-cjk \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置 Puppeteer 使用系统 Chromium
@@ -44,8 +46,8 @@ COPY --from=frontend-builder /build/frontend/dist ./frontend/dist/
 # 复制截图脚本
 COPY --chown=appuser scripts/screenshot.js ./scripts/
 
-# 复制模板（如果有）
-COPY --chown=appuser templates/ ./templates/ 2>/dev/null || true
+# 复制模板
+COPY --chown=appuser:appuser templates/ ./templates/
 
 # 复制 Nginx 配置
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
