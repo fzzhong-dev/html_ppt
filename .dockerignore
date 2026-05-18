@@ -1,0 +1,8 @@
+.git
+node_modules
+__pycache__
+*.pyc
+.env
+backend/venv
+frontend/node_modules
+backend/screenshots/*.png
