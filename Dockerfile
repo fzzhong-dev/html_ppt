@@ -56,9 +56,10 @@ COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY deploy/start.sh ./start.sh
 RUN chmod +x ./start.sh
 
-# 创建临时目录
-RUN mkdir -p /home/appuser/app/backend/screenshots && \
-    chown -R appuser:appuser /home/appuser/app
+# 创建临时目录（含 nginx 非 root 运行所需路径）
+RUN mkdir -p /home/appuser/app/backend/screenshots \
+    /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi /tmp/nginx/uwsgi /tmp/nginx/scgi && \
+    chown -R appuser:appuser /home/appuser/app /tmp/nginx
 
 USER appuser
 ENV HOME=/home/appuser
