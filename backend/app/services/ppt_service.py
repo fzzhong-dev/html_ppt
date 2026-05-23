@@ -16,12 +16,14 @@ from app.services.layout_prompts import (
     THEME_GENERATION_PROMPT,
     SLIDE_FRAGMENT_PROMPT,
 )
+from app.services.template_service import TemplateService
 from app.services.theme_compiler import (
     compile_theme_to_css,
     assemble_slide_html,
     DEFAULT_THEME,
     THEME_CSS_CLASS_CATALOG,
 )
+from app.services import db as db_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,25 @@ def _slide_label_from_dict(item: dict, fallback: str) -> str:
 class PPTService:
     def __init__(self):
         self.presentations: dict[str, Presentation] = {}
+        self._template_service = TemplateService()
+
+    def _extract_template_palette(self, template_id: str) -> dict | None:
+        """Read color palette from a template's theme.json file."""
+        try:
+            import json
+            from pathlib import Path
+            from app.config import settings
+            theme_file = Path(settings.templates_dir) / template_id / "theme.json"
+            if not theme_file.exists():
+                return None
+            data = json.loads(theme_file.read_text(encoding="utf-8"))
+            palette = data.get("palette")
+            if isinstance(palette, dict) and "primary" in palette:
+                return palette
+            return None
+        except Exception:
+            logger.warning("failed to read palette from template %s", template_id, exc_info=True)
+            return None
 
     def create_presentation(self, title: str, template_id: str = "generated") -> Presentation:
         presentation = Presentation(
@@ -59,8 +80,36 @@ class PPTService:
         self.presentations[presentation.id] = presentation
         return presentation
 
-    def get_presentation(self, presentation_id: str) -> Optional[Presentation]:
-        return self.presentations.get(presentation_id)
+    async def get_presentation(self, presentation_id: str) -> Optional[Presentation]:
+        p = self.presentations.get(presentation_id)
+        if p:
+            return p
+        # Fallback to database
+        data = await db_service.load_presentation(presentation_id)
+        if not data:
+            return None
+        slides = [Slide(**s) for s in data["slides"]]
+        pres = Presentation(
+            id=data["id"],
+            title=data["title"],
+            template_id=data.get("template_id", "generated"),
+            theme=data.get("theme", "default"),
+            theme_data=data.get("theme_data"),
+            slides=slides,
+            created_at=data.get("created_at", datetime.now().isoformat()),
+            updated_at=data.get("updated_at", datetime.now().isoformat()),
+        )
+        self.presentations[pres.id] = pres
+        return pres
+
+    async def _persist(self, presentation: Presentation) -> None:
+        """Save presentation + slides to SQLite."""
+        try:
+            p_dict = presentation.model_dump()
+            slides_dicts = [s.model_dump() for s in presentation.slides]
+            await db_service.save_presentation(p_dict, slides_dicts)
+        except Exception:
+            logger.warning("persist failed for %s", presentation.id, exc_info=True)
 
     async def generate_with_ai(
         self,
@@ -97,8 +146,9 @@ class PPTService:
 3. 禁止外链脚本与 iframe；禁止使用依赖网络的图片 URL（可用 CSS 渐变、几何块面、内联 SVG）。
 4. 配色与字体气质须服务于主题，可读优先；正文不宜过小（建议 ≥18px）。
 5. 第一页为封面（主标题与主题一致，可含副标题、日期、署名等）；第二页为目录；最后一页为 **收尾页**，形式由主题决定（例如：要点回顾、行动呼吁、下一步计划、讨论议题、开放问答、数据结论重申、资源延伸阅读等）；勿千篇一律使用「感谢聆听」「谢谢观看」等套路话术，除非主题本身是面向听众的报告场景且用语贴切。中间为递进正文。
-6. 各页之间版式与视觉应有差异，避免每张都是「图标列表 + 圆角卡片」的同一模板复制。
-7. JSON 字符串内的双引号必须转义（\\"），确保可被 json.loads 解析。
+6. **版式反套路（最高优先级）**：各页之间版式结构必须有明显差异。禁止每张都是「顶部标题+下方3-4个等宽圆角卡片+图标+文字」的同一模板复制。每页从以下版式中选择不同的一种：A)全出血大字海报 B)左右分栏 C)上下分区 D)杂志多列 E)时间线 F)对照表 G)数据焦点 H)引用块 I)卡片瀑布流 J)纯文字排版。相邻页禁止相同版式。
+7. **内容充实度**：每页正文至少2-3段阐述或5+要点，内容具体有数据支撑，避免空泛套话。
+8. JSON 字符串内的双引号必须转义（\\"），确保可被 json.loads 解析。
 
 slides 数组长度必须恰好为 {pc}。
 
@@ -202,7 +252,7 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
         instruction: str,
         chat_history: list[dict],
     ) -> Optional[Slide]:
-        presentation = self.get_presentation(presentation_id)
+        presentation = await self.get_presentation(presentation_id)
         if not presentation:
             return None
         slide = next((s for s in presentation.slides if s.id == slide_id), None)
@@ -236,10 +286,11 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
 
         slide.html_content = finalize_slide_html(new_html)
         presentation.updated_at = datetime.now()
+        await self._persist(presentation)
         return slide
 
-    def delete_slide_by_id(self, presentation_id: str, slide_id: str) -> bool:
-        presentation = self.get_presentation(presentation_id)
+    async def delete_slide_by_id(self, presentation_id: str, slide_id: str) -> bool:
+        presentation = await self.get_presentation(presentation_id)
         if not presentation or len(presentation.slides) <= 1:
             return False
         idx = next(
@@ -252,11 +303,12 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
         for i, s in enumerate(presentation.slides):
             s.page_number = i + 1
         presentation.updated_at = datetime.now()
+        await self._persist(presentation)
         return True
 
-    def update_slide_html(self, presentation_id: str, slide_id: str, html_content: str) -> Optional[Slide]:
+    async def update_slide_html(self, presentation_id: str, slide_id: str, html_content: str) -> Optional[Slide]:
         """Persist manual edits from the web editor (no LLM)."""
-        presentation = self.get_presentation(presentation_id)
+        presentation = await self.get_presentation(presentation_id)
         if not presentation:
             return None
         slide = next((s for s in presentation.slides if s.id == slide_id), None)
@@ -264,11 +316,12 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
             return None
         slide.html_content = finalize_slide_html(html_content)
         presentation.updated_at = datetime.now()
+        await self._persist(presentation)
         return slide
 
-    def insert_slide_html(self, presentation_id: str, html_content: str, after_index: Optional[int]) -> Optional[Slide]:
+    async def insert_slide_html(self, presentation_id: str, html_content: str, after_index: Optional[int]) -> Optional[Slide]:
         """Append or insert a slide with fixed HTML (blank template, etc.)."""
-        presentation = self.get_presentation(presentation_id)
+        presentation = await self.get_presentation(presentation_id)
         if not presentation:
             return None
         slide = Slide(
@@ -285,12 +338,23 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
         for idx, s in enumerate(presentation.slides):
             s.page_number = idx + 1
         presentation.updated_at = datetime.now()
+        await self._persist(presentation)
         return slide
 
     # ---- Streaming (slide-by-slide) generation ----
 
-    async def _generate_theme(self, topic: str, creative_mode: bool) -> dict:
-        """Phase 1: generate a shared theme JSON (~200 tokens)."""
+    async def _generate_theme(self, topic: str, creative_mode: bool, template_palette: dict | None = None) -> dict:
+        """Phase 1: generate a shared theme JSON (~200 tokens).
+
+        If template_palette is provided (extracted from a template), use it directly
+        instead of asking the LLM.
+        """
+        if template_palette:
+            return {
+                "palette": template_palette,
+                "typography": DEFAULT_THEME["typography"],
+                "spacing": DEFAULT_THEME["spacing"],
+            }
         try:
             result = await call_llm_json(
                 [
@@ -313,38 +377,54 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
         page_count: int = 8,
         *,
         creative_mode: bool = True,
+        template_id: str | None = None,
     ) -> AsyncGenerator[dict, None]:
-        """Generate slides one at a time, yielding each immediately.
+        """Generate slides in parallel batches, yielding batch results together.
 
-        Pipeline: theme+plan (parallel) → body fragments (serial, yield each).
+        Pipeline: theme+plan (parallel) → body fragments (batched parallel).
         """
         pc = max(4, min(int(page_count), 16))
 
+        # If template_id provided, extract its palette as theme
+        template_palette = None
+        if template_id:
+            template_palette = self._extract_template_palette(template_id)
+
         # Phase 1+2: generate theme and plan in parallel
-        theme_task = asyncio.create_task(self._generate_theme(topic, creative_mode))
+        theme_task = asyncio.create_task(self._generate_theme(topic, creative_mode, template_palette))
         plan_task = asyncio.create_task(self._generate_slide_plan(topic, outline, pc))
         theme, plan = await asyncio.gather(theme_task, plan_task)
         theme_css = compile_theme_to_css(theme)
 
-        # Phase 3: generate slides one by one, yield immediately
-        for i, spec in enumerate(plan):
-            try:
-                result = await self._generate_single_slide_fragment(
+        # Phase 3: generate slides in parallel batches of 3
+        palette = theme.get("palette")
+        BATCH_SIZE = 3
+        for batch_start in range(0, len(plan), BATCH_SIZE):
+            batch = plan[batch_start:batch_start + BATCH_SIZE]
+            tasks = []
+            for j, spec in enumerate(batch):
+                i = batch_start + j
+                tasks.append(self._generate_single_slide_fragment(
                     topic, spec, i, pc, plan,
                     theme_css=theme_css,
                     creative_mode=creative_mode,
-                )
-                yield result
-            except Exception:
-                logger.warning("slide %s generation failed", i + 1, exc_info=True)
-                yield {
-                    "page_number": i + 1,
-                    "label": spec.get("label", f"第 {i + 1} 页"),
-                    "html_content": minimal_slide(
-                        f"第 {i + 1} 页 · 生成失败",
-                        subtitle=SLIDE_PLACEHOLDER_HINT,
-                    ),
-                }
+                    palette=palette,
+                ))
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for j, result in enumerate(results):
+                i = batch_start + j
+                if isinstance(result, Exception):
+                    logger.warning("slide %s generation failed", i + 1, exc_info=True)
+                    yield {
+                        "page_number": i + 1,
+                        "label": batch[j].get("label", f"第 {i + 1} 页"),
+                        "html_content": minimal_slide(
+                            f"第 {i + 1} 页 · 生成失败",
+                            subtitle=SLIDE_PLACEHOLDER_HINT,
+                        ),
+                    }
+                else:
+                    yield result
 
     async def _generate_single_slide_fragment(
         self,
@@ -356,11 +436,30 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
         *,
         theme_css: str,
         creative_mode: bool = True,
+        palette: dict | None = None,
     ) -> dict:
         """Phase 3: generate a body fragment using shared theme CSS classes."""
         other_slides_summary = "\n".join(
-            f"  第{s['page']}页: {s['label']}" for s in plan if s["page"] != index + 1
+            f"  第{s['page']}页: {s['label']} (版式: {s.get('layout_type', '?')})" for s in plan if s["page"] != index + 1
         )
+        assigned_layout = spec.get("layout_type", "")
+        layout_hint = f"\n本页已分配版式类型：{assigned_layout}。请严格按照此版式类型生成页面。" if assigned_layout else ""
+
+        if palette:
+            palette_instruction = (
+                "【强制配色】本演示文稿已确定配色方案，你必须严格遵守：\n"
+                f"  - 主色(primary): {palette.get('primary', '#1a365d')} — 用于标题、重要文字、主视觉元素\n"
+                f"  - 强调色(accent): {palette.get('accent', '#3182ce')} — 用于按钮、标签、装饰条、链接\n"
+                f"  - 强调浅色(accent_light): {palette.get('accent_light', '#ebf8ff')} — 用于标签背景、高亮区域\n"
+                f"  - 正文色(secondary): {palette.get('secondary', '#4a5568')} — 用于正文文字\n"
+                f"  - 背景(bg): {palette.get('bg', '#ffffff')} — 用于页面背景\n"
+                f"  - 卡片背景(surface): {palette.get('surface', '#f7fafc')} — 用于卡片、区块背景\n"
+                f"  - 边框(border): {palette.get('border', '#e2e8f0')} — 用于分割线、卡片边框\n"
+                "优先使用 CSS 变量（如 var(--ppt-primary)），或在 inline style 中直接使用上述色值。\n"
+                "禁止使用与上述配色冲突的其他颜色。"
+            )
+        else:
+            palette_instruction = "请根据主题自拟配色，全稿保持一致。"
 
         system_prompt = SLIDE_FRAGMENT_PROMPT.format(
             index=index + 1,
@@ -369,15 +468,23 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
             content_brief=spec.get("content_brief", "根据主题展开"),
             plan_summary=other_slides_summary,
             css_catalog=THEME_CSS_CLASS_CATALOG,
-        )
+            palette_instruction=palette_instruction,
+        ) + layout_hint
 
         user_slide_msg = f"主题：{topic}\n请生成第 {index + 1} 页幻灯片。"
         max_slide_tokens = 4096
         last_exc: Exception | None = None
         parsed_label = spec["label"]
 
-        for attempt in range(2):
+        for attempt in range(3):
             try:
+                # On 3rd attempt, use a simpler fallback prompt
+                if attempt == 2:
+                    system_prompt = self._simple_fallback_prompt(
+                        index + 1, total, spec["label"],
+                        spec.get("content_brief", "根据主题展开"),
+                        palette,
+                    )
                 result = await call_llm_json(
                     [
                         {"role": "system", "content": system_prompt},
@@ -415,7 +522,7 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
                     "slide %s LLM error (attempt %s, label=%r)",
                     index + 1, attempt + 1, spec.get("label"), exc_info=True,
                 )
-            if attempt == 0:
+            if attempt < 2:
                 await asyncio.sleep(0.5)
 
         if last_exc is not None:
@@ -444,6 +551,23 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
             ),
         }
 
+    def _simple_fallback_prompt(
+        self, index: int, total: int, label: str,
+        content_brief: str, palette: dict | None,
+    ) -> str:
+        """Simplified prompt for retry attempts — less constraints, higher success rate."""
+        palette_part = ""
+        if palette:
+            palette_part = (
+                f"使用配色：背景{palette.get('bg','#fff')}，标题色{palette.get('primary','#1a365d')}，"
+                f"正文色{palette.get('secondary','#4a5568')}，强调色{palette.get('accent','#3182ce')}。"
+            )
+        return f"""\
+生成 1 页幻灯片的 HTML body 片段。第 {index} 页（共 {total} 页），用途：{label}。内容：{content_brief}。
+{palette_part}
+输出 JSON：{{"label":"{label}","body":"...HTML body 片段..."}}
+body 只需 <body> 内部的 HTML，画布 1920x1080。内容充实，配色协调，禁止外链。不要 Markdown 围栏。"""
+
     async def _generate_slide_plan(
         self, topic: str, outline: str | None, pc: int
     ) -> list[dict]:
@@ -454,10 +578,25 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
 
         system_prompt = f"""为演示文稿「{topic}」规划恰好 {pc} 页幻灯片结构。
 输出合法 JSON（不要围栏）：
-{{"plan":[{{"page":1,"label":"封面","content_brief":"简要描述本页内容"}}, ...]}}
+{{"plan":[{{"page":1,"label":"封面","content_brief":"简要描述本页内容","layout_type":"A"}}, ...]}}
 
 规则：第1页封面，第2页目录，最后一页为 **与主题匹配的收尾页**（总结、行动呼吁、Q&A、展望、讨论引导等皆可；勿硬性等同于「致谢」），中间为递进正文。
-每页 content_brief 须简短；其中建议标注 **视觉倾向**：文字主导 / 数据图表（仅确有数据时） / 图文混合 / 极简留白 / 强对比单页 等之一，**不要**默认所有正文页都写「数据图表」。"""
+每页 content_brief 须简短；其中建议标注 **视觉倾向**：文字主导 / 数据图表（仅确有数据时） / 图文混合 / 极简留白 / 强对比单页 等之一，**不要**默认所有正文页都写「数据图表」。
+
+**版式多样性要求（最高优先级）：**
+每页必须指定 layout_type 字段，从以下 10 种中选择，且相邻页禁止相同：
+A) 全出血背景+居中大字（极简海报）
+B) 左右严格分栏
+C) 上下分区
+D) 杂志排版（多列不等宽）
+E) 时间线/流程
+F) 对照表/矩阵
+G) 数据焦点（大数字+图表）
+H) 引用块式（大留白+居中引用）
+I) 卡片瀑布流（不等高不等宽）
+J) 全文字排版（零装饰）
+
+确保生成的 plan 中每页 layout_type 都已填写且相邻页不重复。"""
 
         try:
             result = await call_llm_json(
@@ -501,6 +640,25 @@ outline 建议包含：封面信息要点、目录条目（与后续页数呼应
 顶层必须是单页对象：{{"label":"本页用途","html":"完整HTML文档"}}；
 也可用字段名 "html_content" 代替 "html"。不要把单页包进 slides 数组（若误包数组，仅取第一页）。
 
+## 版式反套路规则
+**这一页的版式必须与同一演示文稿中的其他页面有明显的结构差异。**
+- ❌ 禁止默认套路：顶部标题 + 下方 3-4 个等宽圆角卡片 + 每个卡片内放图标+文字
+- 从以下版式中选择一个与本页用途匹配的：
+  A) 全出血背景+居中大字（极简海报）
+  B) 左右严格分栏
+  C) 上下分区
+  D) 杂志排版（多列不等宽）
+  E) 时间线/流程
+  F) 对照表/矩阵
+  G) 数据焦点（大数字+图表）
+  H) 引用块式（大留白+居中引用）
+  I) 卡片瀑布流
+  J) 全文字排版（零装饰）
+
+## 内容充实度
+- 正文内容必须充实：至少 2-3 段阐述或 5+ 个要点
+- 内容具体、有数据支撑、有逻辑递进，避免空泛套话
+
 HTML 要求：
 1. body 使用 width:1920px;height:1080px;margin:0;overflow:hidden;box-sizing:border-box;
 2. 内容充实：多段阐述、列表或小标题分区均可；本页视觉应与主题及相邻页有差异，避免复制「图标列表 + 圆角卡片」同一模板。
@@ -515,7 +673,7 @@ HTML 要求：
         last_exc: Exception | None = None
         parsed_label = spec["label"]
 
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 result = await call_llm_json(
                     [

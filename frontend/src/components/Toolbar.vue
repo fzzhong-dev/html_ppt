@@ -100,6 +100,9 @@
               <button type="button" class="ppt-rbtn" @click="$emit('delete-slide')" :disabled="loading || slideCount <= 1">
                 删除
               </button>
+              <button type="button" class="ppt-rbtn ppt-rbtn-accent" @click="$emit('regenerate')" :disabled="loading">
+                重新生成
+              </button>
             </div>
             <span class="ppt-group-cap">幻灯片</span>
           </div>
@@ -300,6 +303,7 @@ const emit = defineEmits([
   'add-slide',
   'copy-slide',
   'delete-slide',
+  'regenerate',
   'insert-image',
   'insert-chart',
   'insert-shape',

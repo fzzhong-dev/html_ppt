@@ -22,15 +22,16 @@ export function proposeOutlineStream(topic, seedOutline) {
 export const getLLMStatus = () =>
   api.get('/llm/status')
 
-export const generatePPT = (topic, outline, pageCount = 8, creativeMode = true) =>
+export const generatePPT = (topic, outline, pageCount = 8, creativeMode = true, templateId) =>
   api.post('/ppt/generate', {
     topic,
     ...(outline?.trim() ? { outline: outline.trim() } : {}),
     page_count: pageCount,
     creative_mode: creativeMode,
+    ...(templateId ? { template_id: templateId } : {}),
   })
 
-export function generatePPTStream(topic, outline, pageCount = 8, creativeMode = true) {
+export function generatePPTStream(topic, outline, pageCount = 8, creativeMode = true, templateId) {
   return fetch('/api/ppt/generate-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -39,6 +40,7 @@ export function generatePPTStream(topic, outline, pageCount = 8, creativeMode = 
       ...(outline?.trim() ? { outline: outline.trim() } : {}),
       page_count: pageCount,
       creative_mode: creativeMode,
+      ...(templateId ? { template_id: templateId } : {}),
     }),
   })
 }
@@ -75,6 +77,15 @@ export const listProviders = () =>
 
 export const switchProvider = (provider) =>
   api.put('/llm/provider', { provider })
+
+export const savePresentation = (id, data) =>
+  api.put(`/ppt/${id}`, data)
+
+export const listPresentations = () =>
+  api.get('/ppt/')
+
+export const deletePresentation = (id) =>
+  api.delete(`/ppt/${id}`)
 
 export const searchImages = (query, page = 1) =>
   api.get('/images/search', { params: { q: query, page } })

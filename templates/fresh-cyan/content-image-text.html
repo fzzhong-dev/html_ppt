@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Content - Image + Text</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #ffffff;
+    color: #134e4a;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .header-bar {
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(90deg, #134e4a, #0f766e);
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  .header-accent {
+    position: absolute;
+    top: 100px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #2dd4bf, transparent);
+  }
+  .body-area {
+    flex: 1;
+    display: flex;
+    padding: 50px 80px;
+    gap: 60px;
+    overflow: hidden;
+  }
+  .text-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .section-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #134e4a;
+    margin-bottom: 30px;
+    padding-left: 20px;
+    border-left: 5px solid #0f766e;
+  }
+  .body-text {
+    font-size: 22px;
+    font-weight: 400;
+    color: #134e4a;
+    line-height: 1.9;
+    text-align: justify;
+  }
+  .body-text p {
+    margin-bottom: 16px;
+  }
+  .image-column {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .image-placeholder {
+    width: 100%;
+    max-width: 700px;
+    height: 500px;
+    background: #f0fdfa;
+    border: 3px dashed #5eead4;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #14b8a6;
+    font-size: 24px;
+  }
+  .image-placeholder-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+  .footer-line {
+    width: 100%;
+    height: 3px;
+    background: #ccfbf1;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="header-bar">
+    <div class="header-title" data-editable="header_title">页面标题</div>
+  </div>
+  <div class="header-accent"></div>
+  <div class="body-area">
+    <div class="text-column">
+      <div class="section-title" data-editable="section_title">章节标题</div>
+      <div class="body-text" data-editable="body_text">
+        <p>在此处输入正文内容。左文右图的布局适合展示配有说明文字的图片或数据图表。</p>
+        <p>可以根据需要替换右侧图片，系统支持多种图片格式的插入和自适应排版。</p>
+      </div>
+    </div>
+    <div class="image-column">
+      <div class="image-placeholder" data-editable="image">
+        <div class="image-placeholder-icon">&#128444;</div>
+        <div>图片占位区域</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-line"></div>
+</body>
+</html>

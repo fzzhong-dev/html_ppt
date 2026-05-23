@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Cover Slide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #3b2a1a 0%, #44342a 50%, #5c3d24 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .decorative-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.08;
+    background: #ffffff;
+  }
+  .circle-1 { width: 600px; height: 600px; top: -200px; right: -150px; }
+  .circle-2 { width: 400px; height: 400px; bottom: -100px; left: -100px; }
+  .circle-3 { width: 200px; height: 200px; top: 150px; left: 200px; }
+  .circle-4 { width: 150px; height: 150px; bottom: 200px; right: 300px; }
+  .content {
+    text-align: center;
+    z-index: 1;
+    max-width: 1200px;
+    padding: 0 80px;
+  }
+  .title {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .subtitle {
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.5;
+    margin-bottom: 60px;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .divider {
+    width: 120px;
+    height: 3px;
+    background: #d97706;
+    margin: 0 auto 50px;
+  }
+  .author {
+    font-size: 24px;
+    font-weight: 400;
+    opacity: 0.75;
+    margin-bottom: 12px;
+  }
+  .date {
+    font-size: 20px;
+    font-weight: 400;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+  <div class="decorative-circle circle-1"></div>
+  <div class="decorative-circle circle-2"></div>
+  <div class="decorative-circle circle-3"></div>
+  <div class="decorative-circle circle-4"></div>
+  <div class="content">
+    <div class="title" data-editable="title">演示文稿标题</div>
+    <div class="subtitle" data-editable="subtitle">副标题描述</div>
+    <div class="divider"></div>
+    <div class="author" data-editable="author">作者姓名</div>
+    <div class="date" data-editable="date">2026年5月5日</div>
+  </div>
+</body>
+</html>

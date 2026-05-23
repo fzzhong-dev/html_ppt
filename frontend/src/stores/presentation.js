@@ -8,12 +8,16 @@ import {
   patchSlideHtml,
   insertSlide as insertSlideApi,
   deleteSlideApi,
+  savePresentation,
+  getPresentation,
 } from '../api'
 
 const MAX_HISTORY = 50
+const LAST_ID_KEY = 'html-ppt-last-id'
 
 export const usePresentationStore = defineStore('presentation', () => {
   const presentation = ref(null)
+  const restoring = ref(true) // true until first restore attempt finishes
   const currentSlideIndex = ref(0)
   const chatHistory = ref([])
   const loading = ref(false)
@@ -22,6 +26,36 @@ export const usePresentationStore = defineStore('presentation', () => {
   // undo/redo: store snapshots of the slides array
   const undoStack = ref([])
   const redoStack = ref([])
+
+  // Auto-save
+  const dirty = ref(false)
+  let _saveTimer = null
+  const AUTOSAVE_INTERVAL = 30_000
+
+  function markDirty() {
+    if (!presentation.value) return
+    dirty.value = true
+    if (!_saveTimer) {
+      _saveTimer = setInterval(_autoSave, AUTOSAVE_INTERVAL)
+    }
+  }
+
+  async function _autoSave() {
+    if (!dirty.value || !presentation.value) return
+    try {
+      await savePresentation(presentation.value.id)
+      dirty.value = false
+    } catch (e) {
+      console.error('auto-save failed', e)
+    }
+  }
+
+  function stopAutoSave() {
+    if (_saveTimer) {
+      clearInterval(_saveTimer)
+      _saveTimer = null
+    }
+  }
 
   function _snapshot() {
     if (!presentation.value) return
@@ -43,6 +77,7 @@ export const usePresentationStore = defineStore('presentation', () => {
       currentSlideIndex.value = Math.max(0, presentation.value.slides.length - 1)
     }
     _renumber()
+    markDirty()
   }
 
   function redo() {
@@ -53,6 +88,7 @@ export const usePresentationStore = defineStore('presentation', () => {
       currentSlideIndex.value = Math.max(0, presentation.value.slides.length - 1)
     }
     _renumber()
+    markDirty()
   }
 
   function _renumber() {
@@ -74,8 +110,10 @@ export const usePresentationStore = defineStore('presentation', () => {
     const sid = currentSlide.value.id
     const idx = currentSlideIndex.value
     presentation.value.slides[idx].html_content = html
+    markDirty()
     try {
       await patchSlideHtml(presentation.value.id, sid, html)
+      dirty.value = false
     } catch (e) {
       console.error(e)
     }
@@ -107,19 +145,20 @@ export const usePresentationStore = defineStore('presentation', () => {
     }
   }
 
-  async function generate(topic, outline, pageCount = 8, creativeMode = true) {
+  async function generate(topic, outline, pageCount = 8, creativeMode = true, templateId) {
     loading.value = true
     generationProgress.value = { current: 0, total: pageCount }
 
     try {
-      const response = await generatePPTStream(topic, outline, pageCount, creativeMode)
+      const response = await generatePPTStream(topic, outline, pageCount, creativeMode, templateId)
       if (!response.ok) {
-        const fallback = await generatePPT(topic, outline, pageCount, creativeMode)
+        const fallback = await generatePPT(topic, outline, pageCount, creativeMode, templateId)
         presentation.value = fallback.data
         currentSlideIndex.value = 0
         chatHistory.value = []
         undoStack.value = []
         redoStack.value = []
+        localStorage.setItem(LAST_ID_KEY, fallback.data.id)
         return
       }
 
@@ -152,6 +191,7 @@ export const usePresentationStore = defineStore('presentation', () => {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }
+            localStorage.setItem(LAST_ID_KEY, data.presentation_id)
             currentSlideIndex.value = 0
             chatHistory.value = []
             undoStack.value = []
@@ -210,6 +250,22 @@ export const usePresentationStore = defineStore('presentation', () => {
 
   function selectSlide(index) {
     currentSlideIndex.value = index
+  }
+
+  function reorderSlides(from, to) {
+    if (!presentation.value || from === to) return
+    _snapshot()
+    const slides = presentation.value.slides
+    const [moved] = slides.splice(from, 1)
+    slides.splice(to, 0, moved)
+    _renumber()
+    // Keep current slide selected
+    const curId = currentSlide.value?.id
+    if (curId) {
+      const newIdx = slides.findIndex(s => s.id === curId)
+      if (newIdx >= 0) currentSlideIndex.value = newIdx
+    }
+    markDirty()
   }
 
   function nextSlide() {
@@ -295,7 +351,36 @@ export const usePresentationStore = defineStore('presentation', () => {
     }
   }
 
+  async function loadFromServer() {
+    const lastId = localStorage.getItem(LAST_ID_KEY)
+    if (!lastId) {
+      restoring.value = false
+      return false
+    }
+    try {
+      const { data } = await getPresentation(lastId)
+      if (data && data.slides?.length) {
+        presentation.value = data
+        currentSlideIndex.value = 0
+        chatHistory.value = []
+        undoStack.value = []
+        redoStack.value = []
+        restoring.value = false
+        return true
+      }
+    } catch {
+      // presentation no longer exists on server
+    }
+    localStorage.removeItem(LAST_ID_KEY)
+    restoring.value = false
+    return false
+  }
+
   function reset() {
+    stopAutoSave()
+    dirty.value = false
+    restoring.value = false
+    localStorage.removeItem(LAST_ID_KEY)
     presentation.value = null
     currentSlideIndex.value = 0
     chatHistory.value = []
@@ -303,12 +388,32 @@ export const usePresentationStore = defineStore('presentation', () => {
     redoStack.value = []
   }
 
+  async function loadFromServerById(id) {
+    try {
+      const { data } = await getPresentation(id)
+      if (data && data.slides?.length) {
+        presentation.value = data
+        currentSlideIndex.value = 0
+        chatHistory.value = []
+        undoStack.value = []
+        redoStack.value = []
+        localStorage.setItem(LAST_ID_KEY, id)
+        restoring.value = false
+        return data
+      }
+    } catch {
+      // presentation no longer exists
+    }
+    return null
+  }
+
   return {
-    presentation, currentSlideIndex, chatHistory, loading, generationProgress,
+    presentation, currentSlideIndex, chatHistory, loading, generationProgress, restoring,
     currentSlide, slideCount,
-    canUndo, canRedo,
+    canUndo, canRedo, dirty,
     generate, modify, exportToPPTX, selectSlide, nextSlide, prevSlide,
-    undo, redo, copySlide, deleteSlide, addSlide, addBlankSlide, reset,
+    undo, redo, copySlide, deleteSlide, addSlide, addBlankSlide, reorderSlides, reset,
+    loadFromServer, loadFromServerById,
     patchCurrentSlideHtml,
     applyHtmlTransform,
   }

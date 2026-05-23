@@ -17,6 +17,7 @@ from app.models import (
 from app.services.llm_errors import format_llm_error
 from app.services.export_service import ExportService
 from app.services.ppt_service import PPTService
+from app.services import db as db_service
 
 router = APIRouter()
 
@@ -54,6 +55,30 @@ async def propose_outline_stream(req: OutlineProposalRequest):
     )
 
 
+@router.get("/")
+async def list_presentations():
+    return await db_service.list_presentations()
+
+
+@router.put("/{presentation_id}")
+async def save_presentation(presentation_id: str):
+    pres = await ppt_service.get_presentation(presentation_id)
+    if not pres:
+        raise HTTPException(status_code=404, detail="Presentation not found")
+    await ppt_service._persist(pres)
+    return {"ok": True}
+
+
+@router.delete("/{presentation_id}")
+async def delete_presentation(presentation_id: str):
+    ok = await db_service.delete_presentation(presentation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Presentation not found")
+    # Also remove from memory
+    ppt_service.presentations.pop(presentation_id, None)
+    return {"ok": True}
+
+
 @router.post("/generate")
 async def generate(req: GenerateRequest):
     presentation = await ppt_service.generate_with_ai(
@@ -68,7 +93,10 @@ async def generate(req: GenerateRequest):
 @router.post("/generate-stream")
 async def generate_stream(req: GenerateRequest):
     pc = max(4, min(int(req.page_count), 16))
-    presentation = ppt_service.create_presentation(req.topic.strip()[:500], "generated")
+    presentation = ppt_service.create_presentation(
+        req.topic.strip()[:500],
+        req.template_id or "generated",
+    )
 
     async def event_generator():
         meta = json.dumps({
@@ -85,6 +113,7 @@ async def generate_stream(req: GenerateRequest):
                 outline=req.outline,
                 page_count=pc,
                 creative_mode=req.creative_mode,
+                template_id=req.template_id,
             ):
                 slide_info["id"] = str(uuid.uuid4())
                 slide_info["editable_regions"] = {}
@@ -94,6 +123,14 @@ async def generate_stream(req: GenerateRequest):
 
             done = json.dumps({"type": "done", "presentation_id": presentation.id})
             yield f"data: {done}\n\n"
+
+            # Persist to SQLite after generation completes
+            try:
+                p_dict = presentation.model_dump()
+                slides_dicts = [s.model_dump() for s in presentation.slides]
+                await db_service.save_presentation(p_dict, slides_dicts)
+            except Exception:
+                logger.warning("persist after generation failed", exc_info=True)
         except Exception as e:
             logger.warning("generate_stream failed", exc_info=True)
             err_evt = json.dumps(
@@ -115,7 +152,7 @@ async def generate_stream(req: GenerateRequest):
 
 @router.patch("/{presentation_id}/slide-html")
 async def patch_slide_html(presentation_id: str, body: SlideHtmlPatchRequest):
-    slide = ppt_service.update_slide_html(
+    slide = await ppt_service.update_slide_html(
         presentation_id, body.slide_id, body.html_content
     )
     if not slide:
@@ -125,7 +162,7 @@ async def patch_slide_html(presentation_id: str, body: SlideHtmlPatchRequest):
 
 @router.post("/{presentation_id}/slides")
 async def insert_slide(presentation_id: str, body: SlideInsertRequest):
-    slide = ppt_service.insert_slide_html(
+    slide = await ppt_service.insert_slide_html(
         presentation_id, body.html_content, body.after_index
     )
     if not slide:
@@ -135,7 +172,7 @@ async def insert_slide(presentation_id: str, body: SlideInsertRequest):
 
 @router.post("/{presentation_id}/delete-slide")
 async def delete_slide(presentation_id: str, body: SlideDeleteRequest):
-    ok = ppt_service.delete_slide_by_id(presentation_id, body.slide_id)
+    ok = await ppt_service.delete_slide_by_id(presentation_id, body.slide_id)
     if not ok:
         raise HTTPException(
             status_code=400,
@@ -159,7 +196,7 @@ async def modify(req: ModifyRequest):
 
 @router.post("/export")
 async def export_pptx(req: ExportRequest):
-    presentation = ppt_service.get_presentation(req.presentation_id)
+    presentation = await ppt_service.get_presentation(req.presentation_id)
     if not presentation:
         return {"error": "Presentation not found"}
     pptx_path = await export_service.export_to_pptx(presentation.slides, presentation.title)
@@ -168,7 +205,7 @@ async def export_pptx(req: ExportRequest):
 
 @router.get("/{presentation_id}")
 async def get_presentation(presentation_id: str):
-    pres = ppt_service.get_presentation(presentation_id)
+    pres = await ppt_service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(status_code=404, detail="Presentation not found")
     return pres.model_dump()
@@ -176,7 +213,7 @@ async def get_presentation(presentation_id: str):
 
 @router.get("/{presentation_id}/slides/{slide_number}")
 async def get_slide(presentation_id: str, slide_number: int):
-    pres = ppt_service.get_presentation(presentation_id)
+    pres = await ppt_service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(status_code=404, detail="Presentation not found")
     for slide in pres.slides:

@@ -35,7 +35,51 @@
         </button>
       </div>
       <div v-if="mode === 'visual'" class="preview-toolbar-right">
-        <span class="visual-hint">可直接编辑正文；改完点保存同步到演示文稿与导出。</span>
+        <div class="fmt-bar">
+          <button type="button" class="fmt-btn" title="加粗 (Ctrl+B)" @click="fmtCmd('bold')"><b>B</b></button>
+          <button type="button" class="fmt-btn" title="斜体 (Ctrl+I)" @click="fmtCmd('italic')"><i>I</i></button>
+          <button type="button" class="fmt-btn" title="下划线 (Ctrl+U)" @click="fmtCmd('underline')"><u>U</u></button>
+          <button type="button" class="fmt-btn" title="删除线" @click="fmtCmd('strikeThrough')"><s>S</s></button>
+          <span class="fmt-sep"></span>
+          <button type="button" class="fmt-btn" title="上标" @click="fmtCmd('superscript')">X²</button>
+          <button type="button" class="fmt-btn" title="下标" @click="fmtCmd('subscript')">X₂</button>
+          <span class="fmt-sep"></span>
+          <button type="button" class="fmt-btn" title="无序列表" @click="fmtCmd('insertUnorderedList')">&#8226; 列表</button>
+          <button type="button" class="fmt-btn" title="有序列表" @click="fmtCmd('insertOrderedList')">1. 列表</button>
+          <span class="fmt-sep"></span>
+          <button type="button" class="fmt-btn" title="左对齐" @click="fmtCmd('justifyLeft')">≡←</button>
+          <button type="button" class="fmt-btn" title="居中" @click="fmtCmd('justifyCenter')">≡↔</button>
+          <button type="button" class="fmt-btn" title="右对齐" @click="fmtCmd('justifyRight')">≡→</button>
+          <span class="fmt-sep"></span>
+          <select class="fmt-select" title="字体" @change="fmtFont($event.target.value)">
+            <option value="">字体</option>
+            <option value="Microsoft YaHei">微软雅黑</option>
+            <option value="SimHei">黑体</option>
+            <option value="SimSun">宋体</option>
+            <option value="KaiTi">楷体</option>
+            <option value="Arial">Arial</option>
+            <option value="Georgia">Georgia</option>
+          </select>
+          <select class="fmt-select" title="字号" @change="fmtSize($event.target.value)">
+            <option value="">字号</option>
+            <option value="1">小</option>
+            <option value="3">标准</option>
+            <option value="5">大</option>
+            <option value="7">超大</option>
+          </select>
+          <label class="fmt-color-wrap" title="文字颜色">
+            <span class="fmt-color-icon">A</span>
+            <input type="color" class="fmt-color" value="#323130" @input="fmtColor($event.target.value)" />
+          </label>
+          <label class="fmt-color-wrap" title="高亮颜色">
+            <span class="fmt-color-icon fmt-highlight-icon">&#9673;</span>
+            <input type="color" class="fmt-color" value="#ffeb3b" @input="fmtHighlight($event.target.value)" />
+          </label>
+          <span class="fmt-sep"></span>
+          <button type="button" class="fmt-btn" title="减少缩进" @click="fmtCmd('outdent')">←→</button>
+          <button type="button" class="fmt-btn" title="增加缩进" @click="fmtCmd('indent')">→←</button>
+          <button type="button" class="fmt-btn fmt-btn-danger" title="清除格式" @click="fmtCmd('removeFormat')">清除</button>
+        </div>
         <button type="button" class="btn-save-visual" @click="saveVisual">保存可视化修改</button>
       </div>
       <div v-if="mode === 'code'" class="preview-toolbar-right">
@@ -230,6 +274,28 @@ function saveVisual() {
   if (html) emit('update-html', html)
 }
 
+function fmtCmd(cmd) {
+  iframeRef.value?.contentDocument?.execCommand(cmd, false, null)
+}
+
+function fmtSize(size) {
+  if (!size) return
+  iframeRef.value?.contentDocument?.execCommand('fontSize', false, size)
+}
+
+function fmtColor(color) {
+  iframeRef.value?.contentDocument?.execCommand('foreColor', false, color)
+}
+
+function fmtFont(font) {
+  if (!font) return
+  iframeRef.value?.contentDocument?.execCommand('fontName', false, font)
+}
+
+function fmtHighlight(color) {
+  iframeRef.value?.contentDocument?.execCommand('hiliteColor', false, color)
+}
+
 function applyCode() {
   emit('update-html', codeHtml.value)
   mode.value = 'preview'
@@ -333,6 +399,93 @@ watch(
   color: #605e5c;
   max-width: 420px;
   line-height: 1.35;
+}
+.fmt-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: #faf9f8;
+  border: 1px solid #d2d0ce;
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+.fmt-btn {
+  width: 28px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: #323130;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fmt-btn:hover {
+  background: #e1dfdd;
+}
+.fmt-sep {
+  width: 1px;
+  height: 18px;
+  background: #d2d0ce;
+  margin: 0 2px;
+}
+.fmt-select {
+  height: 26px;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  font-size: 11px;
+  padding: 0 4px;
+  background: #fff;
+  color: #323130;
+  cursor: pointer;
+}
+.fmt-color {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  padding: 2px;
+  cursor: pointer;
+  background: #fff;
+}
+.fmt-color-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.fmt-color-wrap .fmt-color {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.fmt-color-icon {
+  width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  color: #323130;
+  pointer-events: none;
+}
+.fmt-highlight-icon {
+  font-size: 16px;
+  font-weight: 400;
+}
+.fmt-btn-danger {
+  color: #d83b01;
+  font-weight: 600;
+  font-size: 11px;
 }
 .btn-save-visual,
 .btn-apply-code {

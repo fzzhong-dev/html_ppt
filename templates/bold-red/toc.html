@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Table of Contents</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #ffffff;
+    color: #450a0a;
+    display: flex;
+    position: relative;
+  }
+  .left-bar {
+    width: 12px;
+    height: 100%;
+    background: linear-gradient(180deg, #7f1d1d 0%, #b91c1c 100%);
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .page-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, #7f1d1d, #b91c1c, #f87171);
+  }
+  .content {
+    margin-left: 80px;
+    margin-top: 100px;
+    padding-right: 120px;
+    width: 100%;
+  }
+  .toc-title {
+    font-size: 40px;
+    font-weight: 700;
+    color: #7f1d1d;
+    margin-bottom: 60px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #fecaca;
+  }
+  .toc-list {
+    list-style: none;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    padding: 28px 0;
+    border-bottom: 1px solid #fecaca;
+  }
+  .toc-number {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #7f1d1d, #b91c1c);
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 30px;
+  }
+  .toc-item-text {
+    font-size: 30px;
+    font-weight: 500;
+    color: #7f1d1d;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .toc-item:nth-child(even) .toc-number {
+    background: linear-gradient(135deg, #b91c1c, #f87171);
+  }
+</style>
+</head>
+<body>
+  <div class="left-bar"></div>
+  <div class="page-header"></div>
+  <div class="content">
+    <div class="toc-title" data-editable="toc_title">目录</div>
+    <ul class="toc-list">
+      <li class="toc-item">
+        <span class="toc-number">1</span>
+        <span class="toc-item-text" data-editable="toc_item_1">第一章 标题</span>
+      </li>
+      <li class="toc-item">
+        <span class="toc-number">2</span>
+        <span class="toc-item-text" data-editable="toc_item_2">第二章 标题</span>
+      </li>
+      <li class="toc-item">
+        <span class="toc-number">3</span>
+        <span class="toc-item-text" data-editable="toc_item_3">第三章 标题</span>
+      </li>
+      <li class="toc-item">
+        <span class="toc-number">4</span>
+        <span class="toc-item-text" data-editable="toc_item_4">第四章 标题</span>
+      </li>
+      <li class="toc-item">
+        <span class="toc-number">5</span>
+        <span class="toc-item-text" data-editable="toc_item_5">第五章 标题</span>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>

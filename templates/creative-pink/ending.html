@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Ending Slide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #1a0214 0%, #831843 50%, #4a0e32 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .decorative-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.06;
+    background: #ffffff;
+  }
+  .circle-1 { width: 500px; height: 500px; bottom: -150px; right: -100px; }
+  .circle-2 { width: 350px; height: 350px; top: -100px; left: -80px; }
+  .circle-3 { width: 180px; height: 180px; top: 200px; right: 250px; }
+  .content {
+    text-align: center;
+    z-index: 1;
+  }
+  .thank-you {
+    font-size: 72px;
+    font-weight: 700;
+    letter-spacing: 8px;
+    margin-bottom: 40px;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-height: 1.15;
+    max-width: 1600px;
+  }
+  .divider {
+    width: 100px;
+    height: 3px;
+    background: #f472b6;
+    margin: 0 auto 40px;
+  }
+  .message {
+    font-size: 28px;
+    font-weight: 400;
+    opacity: 0.8;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="decorative-circle circle-1"></div>
+  <div class="decorative-circle circle-2"></div>
+  <div class="decorative-circle circle-3"></div>
+  <div class="content">
+    <div class="thank-you" data-editable="thank_you">感谢聆听</div>
+    <div class="divider"></div>
+    <div class="message" data-editable="message">期待与您的进一步交流与合作</div>
+  </div>
+</body>
+</html>

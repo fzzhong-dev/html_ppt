@@ -1,10 +1,22 @@
 <template>
   <div class="home">
-    <div class="home-card wide">
+    <div class="home-card">
       <h1 class="home-title">HTML PPT 生成器</h1>
       <p class="home-desc">
         填写主题；提纲可完全手写（不需要 AI），也可留空由模型自行展开。需要时在草稿上点击「AI 辅助生成提纲」润色扩展。
       </p>
+
+      <!-- Quick-start: inline topic chips -->
+      <div class="quick-chips">
+        <span class="quick-chips-label">快速开始：</span>
+        <button
+          v-for="qt in quickTopics"
+          :key="qt.label"
+          type="button"
+          class="quick-chip"
+          @click="applyQuickTopic(qt)"
+        >{{ qt.icon }} {{ qt.label }}</button>
+      </div>
 
       <div v-if="llmBanner" class="llm-banner">
         <span class="llm-banner-label">当前推理通道</span>
@@ -12,6 +24,28 @@
         <span v-if="llmBanner.fallback" class="llm-banner-warn">
           （已自动切换：{{ llmBanner.configured }} 未配置可用密钥）
         </span>
+      </div>
+
+      <div class="form-group">
+        <label>选择模板风格</label>
+        <div v-if="templateLoading" class="template-loading">加载模板中…</div>
+        <div v-else class="template-grid">
+          <button
+            v-for="t in templates"
+            :key="t.id"
+            type="button"
+            class="template-card"
+            :class="{ active: selectedTemplate === t.id }"
+            @click="selectedTemplate = t.id"
+          >
+            <div
+              class="template-swatch"
+              :style="swatchStyle(t)"
+            >
+              <div class="swatch-label">{{ t.name }}</div>
+            </div>
+          </button>
+        </div>
       </div>
 
       <div class="form-group">
@@ -100,6 +134,31 @@
       </div>
 
       <p v-if="errorMsg" class="form-error">{{ errorMsg }}</p>
+
+      <!-- Recent presentations: inline section -->
+      <div v-if="recentPresentations.length" class="history-section">
+        <div class="history-header">
+          <span class="history-title-label">最近编辑</span>
+          <button type="button" class="btn-clear-history" @click="clearHistory">清除全部</button>
+        </div>
+        <div class="history-list">
+          <button
+            v-for="p in recentPresentations"
+            :key="p.id"
+            type="button"
+            class="history-item"
+            @click="openPresentation(p.id)"
+          >
+            <span class="history-item-title">{{ p.title }}</span>
+            <span class="history-meta">{{ p.slides_count }} 页 · {{ formatDate(p.updated_at) }}</span>
+            <span
+              class="history-delete"
+              title="删除"
+              @click.stop="deletePresentation(p.id)"
+            >×</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -107,7 +166,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { usePresentationStore } from '../stores/presentation'
-import { proposeOutline, proposeOutlineStream, getLLMStatus } from '../api'
+import { proposeOutline, proposeOutlineStream, getLLMStatus, listTemplates, listPresentations as listPresentationsApi, deletePresentation as deletePresentationApi } from '../api'
 
 const store = usePresentationStore()
 
@@ -122,6 +181,18 @@ const visibleSteps = ref([])
 const llmEffective = ref('')
 const llmConfigured = ref('')
 const llmFallback = ref(false)
+
+const templates = ref([])
+const templateLoading = ref(false)
+const selectedTemplate = ref('')
+
+function swatchStyle(t) {
+  const p = t.palette
+  if (!p) return { background: '#f3f2f1' }
+  return {
+    background: `linear-gradient(135deg, ${p.primary} 0%, ${p.primary} 40%, ${p.accent} 60%, ${p.bg || '#fff'} 100%)`,
+  }
+}
 
 const invalidPageCount = computed(() => {
   const n = Number(pageCount.value)
@@ -225,7 +296,7 @@ async function handleGeneratePpt() {
   pptBusy.value = true
   try {
     const outline = outlineDraft.value.trim()
-    await store.generate(topic.value.trim(), outline || '', pageCount.value, creativeMode.value)
+    await store.generate(topic.value.trim(), outline || '', pageCount.value, creativeMode.value, selectedTemplate.value || undefined)
   } catch (e) {
     errorMsg.value =
       e?.response?.data?.detail?.toString?.() ||
@@ -237,18 +308,110 @@ async function handleGeneratePpt() {
 }
 
 onMounted(() => {
+  // Fire all API calls in parallel — no waterfall waits
   loadLlmStatus()
+  loadTemplates()
+  loadRecentPresentations()
 })
+
+// Also run template + history in parallel on mount via Promise.allSettled
+// (the individual functions already handle errors internally, so this is just
+//  for ensuring they don't block each other)
+
+const quickTopics = [
+  { icon: '📊', label: '工作汇报', topic: '季度工作汇报与下季度计划', outline: '1. 本季度核心成果\n2. 关键数据指标\n3. 挑战与应对\n4. 下季度目标与计划' },
+  { icon: '🚀', label: '产品路演', topic: '新产品发布与市场策略', outline: '1. 市场背景与用户痛点\n2. 产品核心亮点\n3. 竞品分析\n4. 商业模式与定价\n5. 上线路线图' },
+  { icon: '📚', label: '教学课件', topic: '教学课件：课程核心知识点讲解', outline: '1. 课程导入与学习目标\n2. 核心概念解析\n3. 案例分析\n4. 课堂练习\n5. 总结与课后任务' },
+  { icon: '💡', label: '技术分享', topic: '技术架构演进与实践分享', outline: '1. 背景与动机\n2. 旧架构痛点\n3. 新架构设计\n4. 落地过程与踩坑\n5. 成果与后续规划' },
+  { icon: '📈', label: '数据分析', topic: '业务数据分析报告与洞察', outline: '1. 数据概览\n2. 核心指标趋势\n3. 用户行为分析\n4. 问题诊断\n5. 优化建议' },
+  { icon: '🎯', label: '项目提案', topic: '项目立项提案与可行性分析', outline: '1. 项目背景\n2. 目标与范围\n3. 技术方案\n4. 资源与时间规划\n5. 风险评估' },
+]
+
+const recentPresentations = ref([])
+
+function applyQuickTopic(qt) {
+  topic.value = qt.topic
+  outlineDraft.value = qt.outline || ''
+  errorMsg.value = ''
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function loadRecentPresentations() {
+  try {
+    const { data } = await listPresentationsApi()
+    recentPresentations.value = (data || []).slice(0, 8)
+  } catch {
+    recentPresentations.value = []
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now - d
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return '刚刚'
+  if (diffMin < 60) return `${diffMin} 分钟前`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `${diffH} 小时前`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD < 7) return `${diffD} 天前`
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+async function openPresentation(id) {
+  try {
+    const { data } = await store.loadFromServerById(id)
+    if (!data) return
+  } catch {
+    // fallback: set localStorage and reload
+    localStorage.setItem('html-ppt-last-id', id)
+    window.location.reload()
+  }
+}
+
+async function deletePresentation(id) {
+  try {
+    await deletePresentationApi(id)
+    recentPresentations.value = recentPresentations.value.filter(p => p.id !== id)
+  } catch {
+    // ignore
+  }
+}
+
+async function clearHistory() {
+  for (const p of recentPresentations.value) {
+    try { await deletePresentationApi(p.id) } catch { /* skip */ }
+  }
+  recentPresentations.value = []
+}
+
+async function loadTemplates() {
+  templateLoading.value = true
+  try {
+    const { data } = await listTemplates()
+    templates.value = data
+    if (data.length && !selectedTemplate.value) {
+      selectedTemplate.value = data[0].id
+    }
+  } catch {
+    templates.value = []
+  } finally {
+    templateLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
 .home {
   height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 24px 12px;
   background: linear-gradient(135deg, #f3f2f1 0%, #edebe9 45%, #e1dfdd 100%);
+  overflow-y: auto;
 }
 .home-card {
   background: white;
@@ -266,9 +429,39 @@ onMounted(() => {
 }
 .home-desc {
   color: #605e5c;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
   font-size: 13px;
   line-height: 1.55;
+}
+/* Quick chips */
+.quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.quick-chips-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #605e5c;
+}
+.quick-chip {
+  padding: 4px 12px;
+  border: 1px solid #d2d0ce;
+  border-radius: 14px;
+  background: #faf9f8;
+  font-size: 12px;
+  font-weight: 500;
+  color: #323130;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.quick-chip:hover {
+  border-color: #0078d4;
+  background: #f0f8ff;
+  color: #0078d4;
 }
 .llm-banner {
   display: flex;
@@ -496,5 +689,134 @@ onMounted(() => {
   background: #0078d4;
   border-radius: 3px;
   transition: width 0.3s ease;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.template-card {
+  display: block;
+  padding: 0;
+  border: 2px solid #edebe9;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  overflow: hidden;
+}
+.template-card:hover {
+  border-color: #b3b0ad;
+}
+.template-card.active {
+  border-color: #d83b01;
+  box-shadow: 0 0 0 1px rgba(216, 59, 1, 0.2);
+}
+.template-swatch {
+  width: 100%;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.swatch-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+.template-loading {
+  font-size: 12px;
+  color: #605e5c;
+  padding: 12px 0;
+}
+
+/* History section (inline) */
+.history-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #edebe9;
+}
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.history-title-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #323130;
+}
+.btn-clear-history {
+  font-size: 11px;
+  color: #605e5c;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.btn-clear-history:hover {
+  background: #f3f2f1;
+  color: #d83b01;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #edebe9;
+  border-radius: 3px;
+  background: #faf9f8;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.history-item:hover {
+  border-color: #b3b0ad;
+  background: #fff;
+}
+.history-item-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #323130;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-meta {
+  font-size: 11px;
+  color: #605e5c;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.history-delete {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #605e5c;
+  background: transparent;
+  flex-shrink: 0;
+}
+.history-delete:hover {
+  background: #edebe9;
+  color: #d83b01;
 }
 </style>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Content - Text</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #ffffff;
+    color: #4a0e32;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .header-bar {
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(90deg, #831843, #be185d);
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #ffffff;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-height: 1.2;
+    max-height: 96px;
+    overflow: hidden;
+  }
+  .header-accent {
+    position: absolute;
+    top: 100px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #f472b6, transparent);
+  }
+  .body-area {
+    flex: 1;
+    padding: 60px 100px;
+    overflow: hidden;
+  }
+  .section-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #831843;
+    margin-bottom: 30px;
+    padding-left: 20px;
+    border-left: 5px solid #be185d;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    line-height: 1.25;
+  }
+  .body-text {
+    font-size: 24px;
+    font-weight: 400;
+    color: #4a0e32;
+    line-height: 2;
+    text-align: justify;
+    overflow: hidden;
+  }
+  .body-text p {
+    margin-bottom: 20px;
+  }
+  .body-text ul,
+  .body-text ol {
+    margin: 12px 0 20px 1.25em;
+    padding: 0;
+  }
+  .body-text li {
+    margin-bottom: 12px;
+  }
+  .body-text > div {
+    margin-bottom: 18px;
+  }
+  .footer-line {
+    width: 100%;
+    height: 3px;
+    background: #fbcfe8;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="header-bar">
+    <div class="header-title" data-editable="header_title">页面标题</div>
+  </div>
+  <div class="header-accent"></div>
+  <div class="body-area">
+    <div class="section-title" data-editable="section_title">章节标题</div>
+    <div class="body-text" data-editable="body_text">
+      <p>在此处输入正文内容。这是一段示例文本，用于展示文本内容页面的排版效果。</p>
+      <p>可以根据需要添加更多段落，系统会自动调整排版和间距，确保内容清晰易读。</p>
+      <p>支持多段落文本展示，适用于各种商务演示场景。</p>
+    </div>
+  </div>
+  <div class="footer-line"></div>
+</body>
+</html>

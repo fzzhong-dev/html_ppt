@@ -38,6 +38,7 @@
       @add-slide="store.addSlide"
       @copy-slide="store.copySlide"
       @delete-slide="store.deleteSlide"
+      @regenerate="handleRegenerate"
       @insert-image="showImageSearch = !showImageSearch"
       @insert-chart="handleInsert('在这页中添加一个数据图表（柱状图/折线图/饼图），使用内联SVG实现，配有标题和简短解读')"
       @insert-shape="handleInsert('在这页中添加装饰性形状元素（几何图形、分隔线、图标等），提升视觉效果')"
@@ -58,6 +59,7 @@
           :currentIndex="store.currentSlideIndex"
           @select="store.selectSlide"
           @add-slide="store.addSlide"
+          @reorder="handleReorder"
         />
         <div class="editor-main">
           <Transition :name="slideTransition" mode="out-in">
@@ -274,6 +276,19 @@ function handleBackHome() {
 
 function handleInsert(instruction) {
   store.modify(instruction)
+}
+
+function handleRegenerate() {
+  const idx = store.currentSlideIndex + 1
+  const total = store.slideCount
+  let label = '正文'
+  if (idx === 1) label = '封面'
+  else if (idx === total) label = '结尾'
+  store.modify(`请完全重新设计此页（第${idx}页，${label}），保持原有的用途和内容主题，但使用全新的版式布局、配色和视觉元素。要求与相邻页面风格协调。`)
+}
+
+function handleReorder({ from, to }) {
+  store.reorderSlides(from, to)
 }
 
 function handleImageSelect(img) {

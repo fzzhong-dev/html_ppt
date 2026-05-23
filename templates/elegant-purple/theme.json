@@ -1,0 +1,11 @@
+{
+  "palette": {
+    "primary": "#4a1d6e",
+    "secondary": "#3b0764",
+    "accent": "#c084fc",
+    "accent_light": "#e9d5ff",
+    "bg": "#faf5ff",
+    "surface": "#faf5ff",
+    "border": "#e9d5ff"
+  }
+}

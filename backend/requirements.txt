@@ -11,3 +11,5 @@ zhipuai==2.1.5.20250825
 dashscope==1.20.14
 pytest==8.3.3
 pytest-asyncio==0.24.0
+aiosqlite>=0.20.0
+beautifulsoup4>=4.12.0
